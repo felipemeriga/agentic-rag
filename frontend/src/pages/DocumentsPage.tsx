@@ -6,12 +6,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemButton,
   ListItemIcon,
   IconButton,
   Alert,
-  CircularProgress,
-  Chip,
   Breadcrumbs,
   Link,
   Dialog,
@@ -20,6 +17,11 @@ import {
   DialogActions,
   TextField,
   alpha,
+  Chip,
+  LinearProgress,
+  Paper,
+  Badge,
+  Tooltip,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -27,8 +29,15 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import FolderIcon from "@mui/icons-material/Folder";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import HomeIcon from "@mui/icons-material/Home";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
+import type { UploadTask } from "../hooks/useDocuments";
 import {
   fetchFolders,
   createFolder,
@@ -38,6 +47,35 @@ import {
 import type { Folder, Breadcrumb } from "../lib/api";
 
 const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm";
+
+function UploadStatusIcon({ status }: { status: UploadTask["status"] }) {
+  switch (status) {
+    case "uploading":
+    case "processing":
+      return null;
+    case "done":
+      return <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />;
+    case "error":
+      return <ErrorIcon fontSize="small" sx={{ color: "error.main" }} />;
+    case "duplicate":
+      return <ContentCopyIcon fontSize="small" sx={{ color: "warning.main" }} />;
+  }
+}
+
+function statusLabel(status: UploadTask["status"]): string {
+  switch (status) {
+    case "uploading":
+      return "Uploading...";
+    case "processing":
+      return "Parsing, chunking & embedding...";
+    case "done":
+      return "Completed";
+    case "error":
+      return "Failed";
+    case "duplicate":
+      return "Duplicate";
+  }
+}
 
 export default function DocumentsPage() {
   const navigate = useNavigate();
@@ -51,8 +89,27 @@ export default function DocumentsPage() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  const { documents, uploading, error, upload, remove } =
-    useDocuments(currentFolderId);
+  // Upload dialog
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+  const {
+    documents,
+    uploads,
+    hasActiveUploads,
+    error,
+    upload: rawUpload,
+    remove,
+    clearUploads,
+  } = useDocuments(currentFolderId);
+
+  // Wrap upload to auto-open the dialog
+  const upload = useCallback(
+    (file: File) => {
+      setUploadDialogOpen(true);
+      return rawUpload(file);
+    },
+    [rawUpload],
+  );
 
   // Load folders and breadcrumbs whenever currentFolderId changes
   useEffect(() => {
@@ -64,20 +121,21 @@ export default function DocumentsPage() {
   }, [currentFolderId]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await upload(file);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      upload(file);
     }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        await upload(file);
+      const files = Array.from(e.dataTransfer.files);
+      for (const file of files) {
+        upload(file);
       }
     },
     [upload],
@@ -100,7 +158,11 @@ export default function DocumentsPage() {
     fetchFolders(currentFolderId).then(setFolders).catch(() => {});
   };
 
-  const handleDeleteFolder = async (folderId: string) => {
+  const handleDeleteFolder = async (
+    e: React.MouseEvent,
+    folderId: string,
+  ) => {
+    e.stopPropagation();
     await deleteFolder(folderId);
     setFolders((prev) => prev.filter((f) => f.id !== folderId));
   };
@@ -109,10 +171,11 @@ export default function DocumentsPage() {
     setCurrentFolderId(folderId);
   };
 
-  const isEmpty = folders.length === 0 && documents.length === 0 && !uploading;
+  const isEmpty =
+    folders.length === 0 && documents.length === 0 && !hasActiveUploads;
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto", p: 4 }}>
+    <Box sx={{ maxWidth: 900, mx: "auto", p: 4 }}>
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
         <IconButton onClick={() => navigate("/")}>
@@ -134,30 +197,47 @@ export default function DocumentsPage() {
           type="file"
           ref={fileInputRef}
           hidden
+          multiple
           accept={ACCEPTED_TYPES}
           onChange={handleFileSelect}
         />
+        {uploads.length > 0 && (
+          <Tooltip title="Upload progress">
+            <IconButton onClick={() => setUploadDialogOpen(true)}>
+              <Badge
+                badgeContent={
+                  uploads.filter(
+                    (u) =>
+                      u.status === "uploading" || u.status === "processing",
+                  ).length || undefined
+                }
+                color="primary"
+              >
+                <CloudUploadIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+        )}
         <Button
           variant="outlined"
           startIcon={<CreateNewFolderIcon />}
           onClick={() => setNewFolderOpen(true)}
+          size="small"
         >
           New Folder
         </Button>
         <Button
           variant="contained"
-          startIcon={
-            uploading ? <CircularProgress size={20} /> : <UploadFileIcon />
-          }
+          startIcon={<UploadFileIcon />}
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
+          size="small"
         >
-          {uploading ? "Processing..." : "Upload"}
+          Upload
         </Button>
       </Box>
 
       {/* Breadcrumbs */}
-      <Breadcrumbs sx={{ mb: 2, ml: 6 }}>
+      <Breadcrumbs sx={{ mb: 3, ml: 6 }}>
         <Link
           component="button"
           underline="hover"
@@ -172,7 +252,7 @@ export default function DocumentsPage() {
           onClick={() => navigateToFolder(null)}
         >
           <HomeIcon fontSize="small" />
-          Root
+          My Documents
         </Link>
         {breadcrumbs.map((bc, index) => {
           const isLast = index === breadcrumbs.length - 1;
@@ -204,7 +284,7 @@ export default function DocumentsPage() {
           borderStyle: "dashed",
           borderColor: dragOver ? "primary.main" : alpha("#ffffff", 0.1),
           borderRadius: 3,
-          p: 4,
+          p: 3,
           mb: 3,
           textAlign: "center",
           bgcolor: dragOver
@@ -213,10 +293,26 @@ export default function DocumentsPage() {
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           transition: "all 0.2s ease-in-out",
+          cursor: "pointer",
+          "&:hover": {
+            borderColor: alpha("#6366f1", 0.4),
+            bgcolor: alpha("#6366f1", 0.04),
+          },
         }}
+        onClick={() => fileInputRef.current?.click()}
       >
-        <Typography color="text.secondary">
-          Drag and drop files here — PDF, DOCX, HTML, Markdown, or text
+        <CloudUploadIcon
+          sx={{ fontSize: 40, color: alpha("#6366f1", 0.5), mb: 1 }}
+        />
+        <Typography color="text.secondary" variant="body2">
+          Drag and drop files here, or click to browse
+        </Typography>
+        <Typography
+          color="text.secondary"
+          variant="caption"
+          sx={{ mt: 0.5, display: "block" }}
+        >
+          PDF, DOCX, HTML, Markdown, or text
         </Typography>
       </Box>
 
@@ -226,89 +322,167 @@ export default function DocumentsPage() {
         </Alert>
       )}
 
-      {uploading && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Processing document — parsing, chunking, and embedding...
-        </Alert>
-      )}
-
-      {/* Folders */}
+      {/* Folders — Grid */}
       {folders.length > 0 && (
-        <List>
-          {folders.map((folder) => (
-            <ListItem
-              key={folder.id}
-              disablePadding
-              secondaryAction={
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              color: alpha("#ffffff", 0.4),
+              mb: 1,
+              display: "block",
+              letterSpacing: 1.5,
+            }}
+          >
+            Folders
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: 2,
+            }}
+          >
+            {folders.map((folder) => (
+              <Paper
+                key={folder.id}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 1,
+                  borderRadius: 3,
+                  bgcolor: alpha("#1a1a2e", 0.5),
+                  border: `1px solid ${alpha("#ffffff", 0.06)}`,
+                  transition:
+                    "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    borderColor: alpha("#6366f1", 0.3),
+                    boxShadow: `0 4px 20px ${alpha("#6366f1", 0.15)}`,
+                  },
+                  position: "relative",
+                }}
+                onClick={() => navigateToFolder(folder.id)}
+              >
                 <IconButton
-                  edge="end"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteFolder(folder.id);
+                  size="small"
+                  sx={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    opacity: 0.4,
+                    "&:hover": { opacity: 1 },
+                  }}
+                  onClick={(e) => handleDeleteFolder(e, folder.id)}
+                >
+                  <DeleteIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <FolderIcon sx={{ fontSize: 48, color: "#6366f1" }} />
+                <Typography
+                  variant="body2"
+                  noWrap
+                  sx={{
+                    maxWidth: "100%",
+                    fontWeight: 500,
+                    textAlign: "center",
                   }}
                 >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              }
-            >
-              <ListItemButton onClick={() => navigateToFolder(folder.id)}>
-                <ListItemIcon>
-                  <FolderIcon sx={{ color: "#6366f1" }} />
-                </ListItemIcon>
-                <ListItemText primary={folder.name} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
+                  {folder.name}
+                </Typography>
+              </Paper>
+            ))}
+          </Box>
+        </Box>
       )}
 
-      {/* Documents */}
+      {/* Documents — List */}
       {documents.length > 0 && (
-        <List>
-          {documents.map((doc) => (
-            <ListItem
-              key={doc.source_filename}
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  onClick={() => remove(doc.source_filename)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              }
-            >
-              <ListItemText
-                primary={
-                  <Box
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+        <Box>
+          <Typography
+            variant="overline"
+            sx={{
+              color: alpha("#ffffff", 0.4),
+              mb: 1,
+              display: "block",
+              letterSpacing: 1.5,
+            }}
+          >
+            Files
+          </Typography>
+          <List disablePadding>
+            {documents.map((doc) => (
+              <ListItem
+                key={doc.source_filename}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  bgcolor: alpha("#1a1a2e", 0.3),
+                  border: `1px solid ${alpha("#ffffff", 0.04)}`,
+                  "&:hover": {
+                    bgcolor: alpha("#1a1a2e", 0.5),
+                    borderColor: alpha("#ffffff", 0.08),
+                  },
+                  transition: "all 0.15s ease",
+                }}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    onClick={() => remove(doc.source_filename)}
+                    sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
                   >
-                    {doc.source_filename}
-                    {doc.status !== "completed" && (
-                      <Chip
-                        label={doc.status}
-                        size="small"
-                        color={
-                          doc.status === "processing" ? "info" : "error"
-                        }
-                      />
-                    )}
-                  </Box>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
                 }
-                secondary={`${doc.chunks} chunks · uploaded ${new Date(doc.created_at).toLocaleDateString()}`}
-              />
-            </ListItem>
-          ))}
-        </List>
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <InsertDriveFileIcon
+                    sx={{ color: alpha("#ffffff", 0.4) }}
+                  />
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <Typography variant="body2" noWrap>
+                        {doc.source_filename}
+                      </Typography>
+                      {doc.status !== "completed" && (
+                        <Chip
+                          label={doc.status}
+                          size="small"
+                          color={
+                            doc.status === "processing" ? "info" : "error"
+                          }
+                        />
+                      )}
+                    </Box>
+                  }
+                  secondary={`${doc.chunks} chunks · ${new Date(doc.created_at).toLocaleDateString()}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
       )}
 
       {/* Empty state */}
       {isEmpty && (
-        <Typography
-          color="text.secondary"
-          sx={{ textAlign: "center", mt: 4 }}
-        >
-          This folder is empty. Upload files or create subfolders.
-        </Typography>
+        <Box sx={{ textAlign: "center", mt: 6 }}>
+          <FolderIcon
+            sx={{ fontSize: 64, color: alpha("#ffffff", 0.1), mb: 2 }}
+          />
+          <Typography color="text.secondary">
+            This folder is empty. Upload files or create subfolders.
+          </Typography>
+        </Box>
       )}
 
       {/* New Folder Dialog */}
@@ -342,6 +516,168 @@ export default function DocumentsPage() {
             Create
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Upload Progress Dialog */}
+      <Dialog
+        open={uploadDialogOpen && uploads.length > 0}
+        onClose={
+          hasActiveUploads
+            ? undefined
+            : () => {
+                setUploadDialogOpen(false);
+                clearUploads();
+              }
+        }
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: alpha("#12121a", 0.95),
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <CloudUploadIcon sx={{ color: "primary.main" }} />
+            <Typography variant="h6">
+              Uploads
+              {hasActiveUploads && (
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{ ml: 1, color: "text.secondary" }}
+                >
+                  (
+                  {
+                    uploads.filter(
+                      (u) =>
+                        u.status === "uploading" ||
+                        u.status === "processing",
+                    ).length
+                  }{" "}
+                  in progress)
+                </Typography>
+              )}
+            </Typography>
+          </Box>
+          {!hasActiveUploads && (
+            <IconButton
+              size="small"
+              onClick={() => {
+                setUploadDialogOpen(false);
+                clearUploads();
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <List disablePadding>
+            {uploads.map((task) => (
+              <ListItem
+                key={task.id}
+                sx={{
+                  px: 0,
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  gap: 0.5,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    width: "100%",
+                  }}
+                >
+                  <InsertDriveFileIcon
+                    sx={{
+                      fontSize: 20,
+                      color: alpha("#ffffff", 0.4),
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{ flex: 1, fontWeight: 500 }}
+                  >
+                    {task.filename}
+                  </Typography>
+                  <UploadStatusIcon status={task.status} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color:
+                        task.status === "error"
+                          ? "error.main"
+                          : task.status === "done"
+                            ? "success.main"
+                            : task.status === "duplicate"
+                              ? "warning.main"
+                              : "text.secondary",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {statusLabel(task.status)}
+                    {task.status === "done" && task.chunks
+                      ? ` · ${task.chunks} chunks`
+                      : ""}
+                  </Typography>
+                </Box>
+                {(task.status === "uploading" ||
+                  task.status === "processing") && (
+                  <LinearProgress
+                    variant={
+                      task.status === "uploading"
+                        ? "indeterminate"
+                        : "indeterminate"
+                    }
+                    sx={{
+                      borderRadius: 1,
+                      height: 3,
+                      bgcolor: alpha("#6366f1", 0.1),
+                      "& .MuiLinearProgress-bar": {
+                        bgcolor: "primary.main",
+                      },
+                    }}
+                  />
+                )}
+                {task.status === "error" && task.errorMessage && (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "error.main", pl: 3.5 }}
+                  >
+                    {task.errorMessage}
+                  </Typography>
+                )}
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        {!hasActiveUploads && (
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setUploadDialogOpen(false);
+                clearUploads();
+              }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        )}
       </Dialog>
     </Box>
   );
