@@ -1,9 +1,11 @@
-import os
 import json
+import os
 from collections.abc import Generator
+
 import anthropic
-from services.embeddings import embed_query
+
 from db.client import get_supabase
+from services.embeddings import embed_query
 
 
 def search_documents(query_embedding: list[float], top_k: int = 5) -> list[dict]:
@@ -24,9 +26,7 @@ def build_system_prompt(context_chunks: list[dict]) -> str:
     if not context_chunks:
         return "You are a helpful assistant. No relevant documents were found for this query."
 
-    context = "\n\n---\n\n".join(
-        [chunk["content"] for chunk in context_chunks]
-    )
+    context = "\n\n---\n\n".join([chunk["content"] for chunk in context_chunks])
     return f"""You are a helpful assistant that answers questions based on the provided context.
 Use the following retrieved documents to answer the user's question.
 If the context doesn't contain relevant information, say so honestly.
@@ -55,9 +55,9 @@ def stream_rag_response(
     ).execute()
 
     # Update conversation's updated_at and title
-    sb.table("conversations").update(
-        {"title": user_message[:50]}
-    ).eq("id", conversation_id).eq("user_id", user_id).execute()
+    sb.table("conversations").update({"title": user_message[:50]}).eq("id", conversation_id).eq(
+        "user_id", user_id
+    ).execute()
 
     # 2. Embed query
     query_embedding = embed_query(user_message)

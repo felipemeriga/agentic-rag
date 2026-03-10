@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+
 from auth import get_current_user
 from db.client import get_supabase
 
@@ -21,18 +22,12 @@ async def list_conversations(user_id: str = Depends(get_current_user)):
 @router.post("")
 async def create_conversation(user_id: str = Depends(get_current_user)):
     sb = get_supabase()
-    result = (
-        sb.table("conversations")
-        .insert({"user_id": user_id})
-        .execute()
-    )
+    result = sb.table("conversations").insert({"user_id": user_id}).execute()
     return result.data[0]
 
 
 @router.get("/{conversation_id}")
-async def get_conversation(
-    conversation_id: str, user_id: str = Depends(get_current_user)
-):
+async def get_conversation(conversation_id: str, user_id: str = Depends(get_current_user)):
     sb = get_supabase()
     conv = (
         sb.table("conversations")
@@ -54,11 +49,7 @@ async def get_conversation(
 
 
 @router.delete("/{conversation_id}")
-async def delete_conversation(
-    conversation_id: str, user_id: str = Depends(get_current_user)
-):
+async def delete_conversation(conversation_id: str, user_id: str = Depends(get_current_user)):
     sb = get_supabase()
-    sb.table("conversations").delete().eq("id", conversation_id).eq(
-        "user_id", user_id
-    ).execute()
+    sb.table("conversations").delete().eq("id", conversation_id).eq("user_id", user_id).execute()
     return {"ok": True}

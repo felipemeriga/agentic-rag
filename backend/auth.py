@@ -1,7 +1,5 @@
-import os
-from fastapi import Request, HTTPException
 import jwt
-
+from fastapi import HTTPException, Request
 
 SUPABASE_JWKS = {
     "keys": [

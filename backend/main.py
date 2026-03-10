@@ -1,6 +1,9 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+
+from routes.chat import router as chat_router
+from routes.conversations import router as conversations_router
 
 load_dotenv()
 
@@ -13,9 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-from routes.conversations import router as conversations_router
-from routes.chat import router as chat_router
 
 app.include_router(conversations_router)
 app.include_router(chat_router)
