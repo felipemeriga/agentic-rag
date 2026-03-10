@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   TextField,
   alpha,
@@ -37,7 +38,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
 import type { UploadTask } from "../hooks/useDocuments";
-import { createFolder, fetchFolders } from "../lib/api";
+import { createFolder, fetchFolders, deleteFolder } from "../lib/api";
 import FolderTree from "../components/FolderTree";
 
 const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm";
@@ -95,6 +96,13 @@ export default function DocumentsPage() {
     null,
   );
 
+  // Delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: "folder" | "document";
+    id: string;
+    name: string;
+  } | null>(null);
+
   const {
     documents,
     uploads,
@@ -144,14 +152,6 @@ export default function DocumentsPage() {
     setDragOver(false);
   }, []);
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-    await createFolder(newFolderName.trim(), currentFolderId);
-    setNewFolderName("");
-    setNewFolderOpen(false);
-    setFolderTreeKey((k) => k + 1);
-  };
-
   const [subFolders, setSubFolders] = useState<
     { id: string; name: string }[]
   >([]);
@@ -168,6 +168,37 @@ export default function DocumentsPage() {
   useEffect(() => {
     loadSubFolders();
   }, [loadSubFolders]);
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    await createFolder(newFolderName.trim(), currentFolderId);
+    setNewFolderName("");
+    setNewFolderOpen(false);
+    setFolderTreeKey((k) => k + 1);
+    loadSubFolders();
+  };
+
+  const handleRequestDeleteFolder = useCallback(
+    (folderId: string, folderName: string) => {
+      setDeleteConfirm({ type: "folder", id: folderId, name: folderName });
+    },
+    [],
+  );
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    if (deleteConfirm.type === "folder") {
+      await deleteFolder(deleteConfirm.id);
+      if (currentFolderId === deleteConfirm.id) {
+        setCurrentFolderId(null);
+      }
+      setFolderTreeKey((k) => k + 1);
+      loadSubFolders();
+    } else {
+      await remove(deleteConfirm.name);
+    }
+    setDeleteConfirm(null);
+  };
 
   const isEmpty =
     subFolders.length === 0 && documents.length === 0 && !hasActiveUploads;
@@ -221,6 +252,7 @@ export default function DocumentsPage() {
             key={folderTreeKey}
             selectedFolderId={currentFolderId}
             onSelectFolder={setCurrentFolderId}
+            onRequestDelete={handleRequestDeleteFolder}
           />
         </Box>
 
@@ -403,12 +435,14 @@ export default function DocumentsPage() {
                     }}
                     sx={{
                       p: 1.5,
+                      position: "relative",
                       cursor: "pointer",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       gap: 0.5,
                       borderRadius: 2.5,
+                      overflow: "hidden",
                       bgcolor:
                         dragOverFolderId === folder.id
                           ? alpha("#6366f1", 0.12)
@@ -423,10 +457,31 @@ export default function DocumentsPage() {
                         transform: "translateY(-1px)",
                         borderColor: alpha("#6366f1", 0.25),
                         boxShadow: `0 4px 16px ${alpha("#6366f1", 0.1)}`,
+                        "& .folder-card-delete": { opacity: 1 },
                       },
                     }}
                     onClick={() => setCurrentFolderId(folder.id)}
                   >
+                    <IconButton
+                      className="folder-card-delete"
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        top: 6,
+                        right: 6,
+                        opacity: 0,
+                        transition: "opacity 0.15s",
+                        p: 0.25,
+                        bgcolor: alpha("#000000", 0.3),
+                        "&:hover": { bgcolor: alpha("#ef4444", 0.3) },
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRequestDeleteFolder(folder.id, folder.name);
+                      }}
+                    >
+                      <DeleteIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
                     <FolderIcon sx={{ fontSize: 36, color: "#6366f1" }} />
                     <Typography
                       variant="caption"
@@ -490,7 +545,13 @@ export default function DocumentsPage() {
                     secondaryAction={
                       <IconButton
                         edge="end"
-                        onClick={() => remove(doc.source_filename)}
+                        onClick={() =>
+                          setDeleteConfirm({
+                            type: "document",
+                            id: doc.source_filename,
+                            name: doc.source_filename,
+                          })
+                        }
                         sx={{
                           opacity: 0.4,
                           "&:hover": { opacity: 1 },
@@ -762,6 +823,35 @@ export default function DocumentsPage() {
             </Button>
           </DialogActions>
         )}
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          Delete {deleteConfirm?.type === "folder" ? "Folder" : "Document"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteConfirm?.type === "folder"
+              ? `Are you sure you want to delete the folder "${deleteConfirm.name}"? All subfolders will be deleted and documents inside will be moved to the root.`
+              : `Are you sure you want to delete "${deleteConfirm?.name}"? All chunks associated with this document will be permanently removed.`}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+          >
+            Delete
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

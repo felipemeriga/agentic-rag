@@ -15,7 +15,7 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { fetchFolders, deleteFolder } from "../lib/api";
+import { fetchFolders } from "../lib/api";
 import type { Folder } from "../lib/api";
 
 interface FolderTreeNodeProps {
@@ -23,7 +23,7 @@ interface FolderTreeNodeProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   depth: number;
-  onDeleted: () => void;
+  onRequestDelete: (folderId: string, folderName: string) => void;
 }
 
 function FolderTreeNode({
@@ -31,7 +31,7 @@ function FolderTreeNode({
   selectedId,
   onSelect,
   depth,
-  onDeleted,
+  onRequestDelete,
 }: FolderTreeNodeProps) {
   const [open, setOpen] = useState(false);
   const [children, setChildren] = useState<Folder[]>([]);
@@ -49,10 +49,9 @@ function FolderTreeNode({
     setOpen(!open);
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    await deleteFolder(folder.id);
-    onDeleted();
+    onRequestDelete(folder.id, folder.name);
   };
 
   const handleSelect = () => {
@@ -131,7 +130,7 @@ function FolderTreeNode({
             selectedId={selectedId}
             onSelect={onSelect}
             depth={depth + 1}
-            onDeleted={onDeleted}
+            onRequestDelete={onRequestDelete}
           />
         ))}
       </Collapse>
@@ -142,11 +141,13 @@ function FolderTreeNode({
 interface FolderTreeProps {
   selectedFolderId: string | null;
   onSelectFolder: (id: string | null) => void;
+  onRequestDelete: (folderId: string, folderName: string) => void;
 }
 
 export default function FolderTree({
   selectedFolderId,
   onSelectFolder,
+  onRequestDelete,
 }: FolderTreeProps) {
   const [rootFolders, setRootFolders] = useState<Folder[]>([]);
 
@@ -215,7 +216,7 @@ export default function FolderTree({
             selectedId={selectedFolderId}
             onSelect={onSelectFolder}
             depth={0}
-            onDeleted={loadRoot}
+            onRequestDelete={onRequestDelete}
           />
         ))}
       </List>
