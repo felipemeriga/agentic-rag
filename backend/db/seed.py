@@ -80,8 +80,6 @@ SAMPLE_CHUNKS = [
 
 
 def seed():
-    import time
-
     sb = get_supabase()
 
     # Get already-seeded topics
@@ -110,10 +108,6 @@ def seed():
             }
         ).execute()
         print("  Inserted.")
-        # Rate limit: 3 RPM on free tier — wait 25s between calls
-        if i < len(remaining) - 1:
-            print("  Waiting 25s for rate limit...")
-            time.sleep(25)
 
     print(f"\nSeeded {len(remaining)} documents ({len(SAMPLE_CHUNKS)} total).")
 

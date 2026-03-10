@@ -1,7 +1,5 @@
 """Document ingestion pipeline: chunk, embed, store."""
 
-import time
-
 from db.client import get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
@@ -44,9 +42,5 @@ def ingest_document(
             .execute()
         )
         inserted_ids.append(result.data[0]["id"])
-
-        # Rate limit: Voyage AI free tier is 3 RPM — wait 25s between calls
-        if i < len(chunks) - 1:
-            time.sleep(25)
 
     return inserted_ids
