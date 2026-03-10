@@ -3,7 +3,7 @@ import json
 from collections.abc import Generator
 import anthropic
 from services.embeddings import embed_query
-from db.supabase import get_supabase
+from db.client import get_supabase
 
 
 def search_documents(query_embedding: list[float], top_k: int = 5) -> list[dict]:

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from services.embeddings import embed_document
-from db.supabase import get_supabase
+from db.client import get_supabase
 
 SAMPLE_CHUNKS = [
     {
@@ -43,16 +43,27 @@ SAMPLE_CHUNKS = [
 
 
 def seed():
+    import time
+
     sb = get_supabase()
 
-    # Check if documents already exist
-    existing = sb.table("documents").select("id").limit(1).execute()
-    if existing.data:
-        print("Documents already seeded. Skipping.")
+    # Get already-seeded topics
+    existing = sb.table("documents").select("metadata").execute()
+    seeded_topics = set()
+    for doc in existing.data:
+        if doc.get("metadata") and doc["metadata"].get("topic"):
+            seeded_topics.add(doc["metadata"]["topic"])
+
+    remaining = [c for c in SAMPLE_CHUNKS if c["metadata"]["topic"] not in seeded_topics]
+    if not remaining:
+        print(f"All {len(SAMPLE_CHUNKS)} documents already seeded. Skipping.")
         return
 
-    for chunk in SAMPLE_CHUNKS:
-        print(f"Embedding: {chunk['metadata']['topic']}...")
+    print(f"{len(seeded_topics)} already seeded, {len(remaining)} remaining.")
+
+    for i, chunk in enumerate(remaining):
+        topic = chunk["metadata"]["topic"]
+        print(f"Embedding: {topic}...")
         embedding = embed_document(chunk["content"])
         sb.table("documents").insert(
             {
@@ -62,8 +73,12 @@ def seed():
             }
         ).execute()
         print(f"  Inserted.")
+        # Rate limit: 3 RPM on free tier — wait 25s between calls
+        if i < len(remaining) - 1:
+            print("  Waiting 25s for rate limit...")
+            time.sleep(25)
 
-    print(f"\nSeeded {len(SAMPLE_CHUNKS)} documents.")
+    print(f"\nSeeded {len(remaining)} documents ({len(SAMPLE_CHUNKS)} total).")
 
 
 if __name__ == "__main__":

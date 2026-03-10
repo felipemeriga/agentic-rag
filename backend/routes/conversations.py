@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from auth import get_current_user
-from db.supabase import get_supabase
+from db.client import get_supabase
 
 router = APIRouter(prefix="/api/conversations")
 
