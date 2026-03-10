@@ -112,11 +112,13 @@ export async function streamChat(
 export interface DocumentInfo {
   source_filename: string;
   chunks: number;
+  status: "processing" | "completed" | "failed";
   created_at: string;
 }
 
 export interface UploadResult {
   filename: string;
+  duplicate: boolean;
   chunks: number;
   document_ids: string[];
 }

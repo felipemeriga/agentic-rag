@@ -35,7 +35,10 @@ export function useDocuments() {
       setUploading(true);
       setError(null);
       try {
-        await apiUpload(file);
+        const result = await apiUpload(file);
+        if (result.duplicate) {
+          setError("Document already uploaded (identical content detected)");
+        }
         await loadDocuments();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
