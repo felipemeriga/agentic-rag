@@ -44,6 +44,7 @@ def ingest_document(
     file_bytes: bytes,
     filename: str,
     user_id: str,
+    folder_id: str | None = None,
 ) -> dict:
     """Ingest a document: parse, hash, deduplicate, chunk, embed, store.
 
@@ -72,28 +73,26 @@ def ingest_document(
         embedding = embed_document(chunk)
         meta = extract_metadata(chunk)
 
-        result = (
-            sb.table("documents")
-            .insert(
-                {
-                    "content": chunk,
-                    "embedding": embedding,
-                    "metadata": {
-                        "source_filename": filename,
-                        "chunk_index": i,
-                        "total_chunks": len(chunks),
-                        "topic": meta["topic"],
-                        "keywords": meta["keywords"],
-                    },
-                    "user_id": user_id,
-                    "source_filename": filename,
-                    "source_type": source_type,
-                    "content_hash": content_hash,
-                    "status": "processing",
-                }
-            )
-            .execute()
-        )
+        row = {
+            "content": chunk,
+            "embedding": embedding,
+            "metadata": {
+                "source_filename": filename,
+                "chunk_index": i,
+                "total_chunks": len(chunks),
+                "topic": meta["topic"],
+                "keywords": meta["keywords"],
+            },
+            "user_id": user_id,
+            "source_filename": filename,
+            "source_type": source_type,
+            "content_hash": content_hash,
+            "status": "processing",
+        }
+        if folder_id:
+            row["folder_id"] = folder_id
+
+        result = sb.table("documents").insert(row).execute()
         inserted_ids.append(result.data[0]["id"])
 
     # Mark all chunks as completed

@@ -28,6 +28,21 @@ create table messages (
   created_at timestamptz default now()
 );
 
+create table folders (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  parent_id uuid references folders(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now()
+);
+
+alter table folders enable row level security;
+
+create policy "Users manage own folders"
+  on folders for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 create table documents (
   id uuid primary key default gen_random_uuid(),
   content text not null,
@@ -37,6 +52,7 @@ create table documents (
   source_filename text,
   source_type text,
   content_hash text,
+  folder_id uuid references folders(id) on delete set null,
   status text not null default 'completed' check (status in ('processing', 'completed', 'failed')),
   created_at timestamptz default now()
 );

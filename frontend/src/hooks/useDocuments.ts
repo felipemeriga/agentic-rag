@@ -6,36 +6,36 @@ import {
   deleteDocument as apiDelete,
 } from "../lib/api";
 
-export function useDocuments() {
+export function useDocuments(folderId?: string | null) {
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadDocuments = useCallback(async () => {
     try {
-      const docs = await fetchDocuments();
+      const docs = await fetchDocuments(folderId);
       setDocuments(docs);
     } catch {
       setError("Failed to load documents");
     }
-  }, []);
+  }, [folderId]);
 
   useEffect(() => {
     let active = true;
-    fetchDocuments().then((docs) => {
+    fetchDocuments(folderId).then((docs) => {
       if (active) setDocuments(docs);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [folderId]);
 
   const upload = useCallback(
     async (file: File) => {
       setUploading(true);
       setError(null);
       try {
-        const result = await apiUpload(file);
+        const result = await apiUpload(file, folderId);
         if (result.duplicate) {
           setError("Document already uploaded (identical content detected)");
         }
@@ -46,14 +46,16 @@ export function useDocuments() {
         setUploading(false);
       }
     },
-    [loadDocuments],
+    [folderId, loadDocuments],
   );
 
   const remove = useCallback(
     async (filename: string) => {
       try {
         await apiDelete(filename);
-        setDocuments((prev) => prev.filter((d) => d.source_filename !== filename));
+        setDocuments((prev) =>
+          prev.filter((d) => d.source_filename !== filename),
+        );
       } catch {
         setError("Failed to delete document");
       }

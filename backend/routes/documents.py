@@ -13,7 +13,11 @@ ALLOWED_EXTENSIONS = {".txt", ".text", ".md", ".markdown", ".pdf", ".docx", ".ht
 
 
 @router.post("/upload")
-async def upload_document(file: UploadFile, user_id: str = Depends(get_current_user)):
+async def upload_document(
+    file: UploadFile,
+    folder_id: str | None = None,
+    user_id: str = Depends(get_current_user),
+):
     """Upload a document for ingestion. Supports PDF, DOCX, HTML, Markdown, and text."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -30,7 +34,9 @@ async def upload_document(file: UploadFile, user_id: str = Depends(get_current_u
     if not file_bytes:
         raise HTTPException(status_code=400, detail="File is empty")
 
-    result = ingest_document(file_bytes=file_bytes, filename=file.filename, user_id=user_id)
+    result = ingest_document(
+        file_bytes=file_bytes, filename=file.filename, user_id=user_id, folder_id=folder_id
+    )
 
     return {
         "filename": file.filename,
@@ -41,16 +47,24 @@ async def upload_document(file: UploadFile, user_id: str = Depends(get_current_u
 
 
 @router.get("")
-async def list_documents(user_id: str = Depends(get_current_user)):
-    """List user's uploaded documents, grouped by source filename."""
+async def list_documents(
+    folder_id: str | None = None,
+    user_id: str = Depends(get_current_user),
+):
+    """List user's uploaded documents, grouped by source filename, optionally filtered by folder."""
     sb = get_supabase()
-    result = (
+    query = (
         sb.table("documents")
-        .select("id, source_filename, metadata, status, created_at")
+        .select("id, source_filename, metadata, status, created_at, folder_id")
         .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .execute()
     )
+
+    if folder_id:
+        query = query.eq("folder_id", folder_id)
+    else:
+        query = query.is_("folder_id", "null")
+
+    result = query.order("created_at", desc=True).execute()
 
     # Group by source_filename
     files: dict[str, dict] = {}
@@ -62,6 +76,7 @@ async def list_documents(user_id: str = Depends(get_current_user)):
                 "chunks": 0,
                 "status": doc.get("status", "completed"),
                 "created_at": doc["created_at"],
+                "folder_id": doc.get("folder_id"),
             }
         files[fname]["chunks"] += 1
         # If any chunk is processing or failed, reflect that
