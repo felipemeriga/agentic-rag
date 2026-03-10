@@ -3,6 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     environment:
       - ANTHROPIC_API_KEY
       - VOYAGE_API_KEY
@@ -21,6 +23,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.mcp
+    ports:
+      - "8001:8001"
     environment:
       - ANTHROPIC_API_KEY
       - VOYAGE_API_KEY
@@ -33,6 +37,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_SUPABASE_URL
+        - VITE_SUPABASE_ANON_KEY
+    ports:
+      - "80:80"
     restart: unless-stopped
     depends_on:
       - backend

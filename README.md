@@ -159,7 +159,7 @@ Connect from Claude Code or any MCP client:
 ## Docker Deployment
 
 ```bash
-# Set environment variables (or use an .env file)
+# Backend + MCP environment variables
 export ANTHROPIC_API_KEY=...
 export VOYAGE_API_KEY=...
 export TAVILY_API_KEY=...
@@ -168,13 +168,19 @@ export SUPABASE_SERVICE_KEY=...
 export SUPABASE_JWT_SECRET=...
 export MCP_API_KEY=...
 
-docker compose up -d
+# Frontend build args (Vite bakes these into the JS bundle at build time)
+export VITE_SUPABASE_URL=...
+export VITE_SUPABASE_ANON_KEY=...
+
+docker compose up -d --build
 ```
 
 Three containers:
 - **backend** — FastAPI on port 8000
 - **mcp-server** — MCP over SSE on port 8001
-- **frontend** — Nginx on port 80
+- **frontend** — Nginx on port 80 (proxies `/api` requests to backend)
+
+The frontend Nginx config handles both SPA routing and reverse-proxying API requests to the backend container, so everything runs through a single port.
 
 For production behind Traefik, add labels to `docker-compose.yml` for your domain routing.
 
