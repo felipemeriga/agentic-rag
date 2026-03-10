@@ -65,7 +65,9 @@ create policy "Users manage own documents"
 create or replace function match_documents(
   query_embedding vector(1024),
   match_count int default 5,
-  filter_user_id uuid default null
+  filter_user_id uuid default null,
+  filter_topic text default null,
+  filter_keyword text default null
 )
 returns table (
   id uuid,
@@ -81,7 +83,9 @@ as $$
     metadata,
     1 - (embedding <=> query_embedding) as similarity
   from documents
-  where user_id = filter_user_id or user_id is null
+  where (user_id = filter_user_id or user_id is null)
+    and (filter_topic is null or metadata->>'topic' = filter_topic)
+    and (filter_keyword is null or metadata->'keywords' ? filter_keyword)
   order by embedding <=> query_embedding
   limit match_count;
 $$;
