@@ -374,8 +374,8 @@ export default function DocumentsPage() {
                   size="small"
                   sx={{
                     position: "absolute",
-                    top: 6,
-                    right: 6,
+                    top: 10,
+                    right: 10,
                     opacity: 0,
                     transition: "opacity 0.15s ease",
                     bgcolor: alpha("#000000", 0.3),
