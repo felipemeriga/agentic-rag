@@ -139,6 +139,15 @@ begin
     raise exception 'Only SELECT queries are allowed';
   end if;
 
+  -- Block dangerous keywords as defense-in-depth
+  if trim(upper(query_text)) ~ '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b'
+  then
+    raise exception 'Query contains forbidden keywords';
+  end if;
+
+  -- Enforce read-only at the engine level
+  set local transaction_read_only = on;
+
   execute format('select jsonb_agg(row_to_json(t)) from (%s) t', query_text) into result;
   return coalesce(result, '[]'::jsonb);
 end;

@@ -56,11 +56,12 @@ def stream_rag_response(
     )
     messages = [{"role": m["role"], "content": m["content"]} for m in history.data]
 
-    # 3. Tool-use loop
+    # 3. Tool-use loop (max 10 rounds to prevent runaway)
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     full_response = ""
+    max_rounds = 10
 
-    while True:
+    for _ in range(max_rounds):
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=1024,
@@ -91,20 +92,16 @@ def stream_rag_response(
             messages.append({"role": "user", "content": tool_results})
             continue
 
-        # Claude is done with tools — stream the final response
+        # Claude is done with tools — extract the final text response
+        for block in response.content:
+            if hasattr(block, "text"):
+                full_response += block.text
+                yield f"data: {json.dumps({'token': block.text})}\n\n"
         break
-
-    # 4. Stream the final response
-    with client.messages.stream(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-        tools=TOOL_DEFINITIONS,
-    ) as stream:
-        for text in stream.text_stream:
-            full_response += text
-            yield f"data: {json.dumps({'token': text})}\n\n"
+    else:
+        # Exhausted max rounds
+        full_response = "I was unable to complete the request after multiple attempts."
+        yield f"data: {json.dumps({'token': full_response})}\n\n"
 
     # 5. Save assistant message
     sb.table("messages").insert(
