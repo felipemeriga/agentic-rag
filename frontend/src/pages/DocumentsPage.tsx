@@ -92,6 +92,11 @@ export default function DocumentsPage() {
   // Upload dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
+  // Folder drag-over tracking
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(
+    null,
+  );
+
   const {
     documents,
     uploads,
@@ -104,9 +109,9 @@ export default function DocumentsPage() {
 
   // Wrap upload to auto-open the dialog
   const upload = useCallback(
-    (file: File) => {
+    (file: File, targetFolderId?: string | null) => {
       setUploadDialogOpen(true);
-      return rawUpload(file);
+      return rawUpload(file, targetFolderId);
     },
     [rawUpload],
   );
@@ -346,6 +351,28 @@ export default function DocumentsPage() {
             {folders.map((folder) => (
               <Paper
                 key={folder.id}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOverFolderId(folder.id);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOverFolderId((prev) =>
+                    prev === folder.id ? null : prev,
+                  );
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOverFolderId(null);
+                  setDragOver(false);
+                  const files = Array.from(e.dataTransfer.files);
+                  for (const file of files) {
+                    upload(file, folder.id);
+                  }
+                }}
                 sx={{
                   p: 2,
                   cursor: "pointer",
@@ -354,10 +381,17 @@ export default function DocumentsPage() {
                   alignItems: "center",
                   gap: 1,
                   borderRadius: 3,
-                  bgcolor: alpha("#1a1a2e", 0.5),
-                  border: `1px solid ${alpha("#ffffff", 0.06)}`,
+                  bgcolor:
+                    dragOverFolderId === folder.id
+                      ? alpha("#6366f1", 0.12)
+                      : alpha("#1a1a2e", 0.5),
+                  border: `1px solid ${
+                    dragOverFolderId === folder.id
+                      ? alpha("#6366f1", 0.5)
+                      : alpha("#ffffff", 0.06)
+                  }`,
                   transition:
-                    "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                    "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease",
                   "&:hover": {
                     transform: "translateY(-2px)",
                     borderColor: alpha("#6366f1", 0.3),

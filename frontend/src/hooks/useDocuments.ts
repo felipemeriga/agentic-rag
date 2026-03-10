@@ -43,7 +43,8 @@ export function useDocuments(folderId?: string | null) {
   }, [folderId]);
 
   const upload = useCallback(
-    async (file: File) => {
+    async (file: File, targetFolderId?: string | null) => {
+      const uploadToFolder = targetFolderId ?? folderId;
       const taskId = crypto.randomUUID();
       const task: UploadTask = {
         id: taskId,
@@ -59,7 +60,7 @@ export function useDocuments(folderId?: string | null) {
             u.id === taskId ? { ...u, status: "processing" } : u,
           ),
         );
-        const result = await apiUpload(file, folderId);
+        const result = await apiUpload(file, uploadToFolder);
 
         if (result.duplicate) {
           setUploads((prev) =>
