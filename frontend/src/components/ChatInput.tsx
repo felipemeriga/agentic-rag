@@ -87,7 +87,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         WebkitBackdropFilter: "blur(10px)",
       }}
     >
-      <Box sx={{ maxWidth: 768, mx: "auto", px: 2, py: 2 }}>
+      <Box sx={{ px: 2, py: 2 }}>
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: uploadedFile || hasFilters ? 1 : 0 }}>
         {uploadedFile && (
           <Chip

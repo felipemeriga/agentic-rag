@@ -21,7 +21,7 @@ export default function MessageBubble({ role, content }: MessageBubbleProps) {
         elevation={0}
         sx={{
           p: 2,
-          maxWidth: isUser ? "70%" : "85%",
+          maxWidth: isUser ? "60%" : "75%",
           bgcolor: isUser
             ? alpha("#6366f1", 0.2)
             : alpha("#1a1a2e", 0.6),
