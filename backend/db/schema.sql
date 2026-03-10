@@ -1,0 +1,74 @@
+create extension if not exists vector;
+
+create table conversations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null default 'New conversation',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create or replace function update_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger conversations_updated_at
+  before update on conversations
+  for each row execute function update_updated_at();
+
+create table messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz default now()
+);
+
+create table documents (
+  id uuid primary key default gen_random_uuid(),
+  content text not null,
+  embedding vector(1024),
+  metadata jsonb,
+  created_at timestamptz default now()
+);
+
+create index on documents using hnsw (embedding vector_cosine_ops);
+
+alter table conversations enable row level security;
+alter table messages enable row level security;
+
+create policy "Users manage own conversations"
+  on conversations for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users manage own messages"
+  on messages for all
+  using (conversation_id in (select id from conversations where user_id = auth.uid()))
+  with check (conversation_id in (select id from conversations where user_id = auth.uid()));
+
+create or replace function match_documents(
+  query_embedding vector(1024),
+  match_count int default 5
+)
+returns table (
+  id uuid,
+  content text,
+  metadata jsonb,
+  similarity float
+)
+language sql stable
+as $$
+  select
+    id,
+    content,
+    metadata,
+    1 - (embedding <=> query_embedding) as similarity
+  from documents
+  order by embedding <=> query_embedding
+  limit match_count;
+$$;
