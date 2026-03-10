@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import Sidebar from "../components/Sidebar";
 import ChatArea from "../components/ChatArea";
+import type { Conversation, Message } from "../lib/api";
 import {
-  Conversation,
-  Message,
   fetchConversations,
   createConversation,
   deleteConversation,

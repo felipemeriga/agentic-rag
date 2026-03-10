@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
-import { Message } from "../lib/api";
+import type { Message } from "../lib/api";
 
 interface ChatAreaProps {
   messages: Message[];
