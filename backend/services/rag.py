@@ -42,9 +42,9 @@ def stream_rag_response(
     ).execute()
 
     # Update conversation title
-    sb.table("conversations").update({"title": user_message[:50]}).eq(
-        "id", conversation_id
-    ).eq("user_id", user_id).execute()
+    sb.table("conversations").update({"title": user_message[:50]}).eq("id", conversation_id).eq(
+        "user_id", user_id
+    ).execute()
 
     # 2. Fetch conversation history
     history = (
@@ -78,9 +78,7 @@ def stream_rag_response(
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
-                    result_text = execute_tool(
-                        block.name, block.input, user_id, topic, keyword
-                    )
+                    result_text = execute_tool(block.name, block.input, user_id, topic, keyword)
                     tool_results.append(
                         {
                             "type": "tool_result",
