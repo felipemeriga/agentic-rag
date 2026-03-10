@@ -1,6 +1,7 @@
-"""Document upload, list, and delete endpoints."""
+"""Document upload, list, delete, and move endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from auth import get_current_user
 from db.client import get_supabase
@@ -113,6 +114,37 @@ async def get_filters(user_id: str = Depends(get_current_user)):
         "topics": sorted(topics),
         "keywords": sorted(keywords),
     }
+
+
+class MoveDocumentRequest(BaseModel):
+    folder_id: str | None = None
+
+
+@router.patch("/{filename}/move")
+async def move_document(
+    filename: str,
+    body: MoveDocumentRequest,
+    user_id: str = Depends(get_current_user),
+):
+    """Move all chunks of a document to a different folder (or root if folder_id is null)."""
+    sb = get_supabase()
+
+    # Verify target folder belongs to user if specified
+    if body.folder_id:
+        folder = (
+            sb.table("folders")
+            .select("id")
+            .eq("id", body.folder_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not folder.data:
+            raise HTTPException(status_code=404, detail="Target folder not found")
+
+    sb.table("documents").update({"folder_id": body.folder_id}).eq("source_filename", filename).eq(
+        "user_id", user_id
+    ).execute()
+    return {"ok": True}
 
 
 @router.delete("/{filename}")

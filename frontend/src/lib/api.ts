@@ -176,6 +176,16 @@ export async function uploadDocument(
   return response.json();
 }
 
+export async function moveDocument(
+  filename: string,
+  folderId: string | null
+): Promise<void> {
+  await apiFetch(`/api/documents/${encodeURIComponent(filename)}/move`, {
+    method: "PATCH",
+    body: JSON.stringify({ folder_id: folderId }),
+  });
+}
+
 export async function deleteDocument(filename: string): Promise<void> {
   await apiFetch(`/api/documents/${encodeURIComponent(filename)}`, {
     method: "DELETE",

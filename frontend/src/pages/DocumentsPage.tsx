@@ -30,6 +30,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import HomeIcon from "@mui/icons-material/Home";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -103,6 +104,7 @@ export default function DocumentsPage() {
     hasActiveUploads,
     error,
     upload: rawUpload,
+    move,
     remove,
     clearUploads,
   } = useDocuments(currentFolderId);
@@ -368,6 +370,15 @@ export default function DocumentsPage() {
                   e.stopPropagation();
                   setDragOverFolderId(null);
                   setDragOver(false);
+                  // Check if it's an existing document being moved
+                  const docFilename = e.dataTransfer.getData(
+                    "application/x-document-filename",
+                  );
+                  if (docFilename) {
+                    move(docFilename, folder.id);
+                    return;
+                  }
+                  // Otherwise it's new files being uploaded
                   const files = Array.from(e.dataTransfer.files);
                   for (const file of files) {
                     upload(file, folder.id);
@@ -456,11 +467,21 @@ export default function DocumentsPage() {
             {documents.map((doc) => (
               <ListItem
                 key={doc.source_filename}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(
+                    "application/x-document-filename",
+                    doc.source_filename,
+                  );
+                  e.dataTransfer.effectAllowed = "move";
+                }}
                 sx={{
                   borderRadius: 2,
                   mb: 0.5,
                   bgcolor: alpha("#1a1a2e", 0.3),
                   border: `1px solid ${alpha("#ffffff", 0.04)}`,
+                  cursor: "grab",
+                  "&:active": { cursor: "grabbing" },
                   "&:hover": {
                     bgcolor: alpha("#1a1a2e", 0.5),
                     borderColor: alpha("#ffffff", 0.08),
@@ -477,7 +498,14 @@ export default function DocumentsPage() {
                   </IconButton>
                 }
               >
-                <ListItemIcon sx={{ minWidth: 40 }}>
+                <ListItemIcon sx={{ minWidth: 56, gap: 0.5 }}>
+                  <DragIndicatorIcon
+                    sx={{
+                      fontSize: 16,
+                      color: alpha("#ffffff", 0.2),
+                      cursor: "grab",
+                    }}
+                  />
                   <InsertDriveFileIcon
                     sx={{ color: alpha("#ffffff", 0.4) }}
                   />

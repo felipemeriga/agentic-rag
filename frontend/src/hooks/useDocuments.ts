@@ -4,6 +4,7 @@ import {
   fetchDocuments,
   uploadDocument as apiUpload,
   deleteDocument as apiDelete,
+  moveDocument as apiMove,
 } from "../lib/api";
 
 export interface UploadTask {
@@ -100,6 +101,20 @@ export function useDocuments(folderId?: string | null) {
     );
   }, []);
 
+  const move = useCallback(
+    async (filename: string, targetFolderId: string | null) => {
+      try {
+        await apiMove(filename, targetFolderId);
+        setDocuments((prev) =>
+          prev.filter((d) => d.source_filename !== filename),
+        );
+      } catch {
+        setError("Failed to move document");
+      }
+    },
+    [],
+  );
+
   const remove = useCallback(async (filename: string) => {
     try {
       await apiDelete(filename);
@@ -117,6 +132,7 @@ export function useDocuments(folderId?: string | null) {
     hasActiveUploads,
     error,
     upload,
+    move,
     remove,
     loadDocuments,
     clearUploads,
