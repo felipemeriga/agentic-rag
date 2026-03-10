@@ -3,8 +3,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
     env_file:
       - ./backend/.env
     restart: unless-stopped
@@ -13,33 +11,47 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rag-backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.services.rag-backend.loadbalancer.server.port=8000"
     networks:
       - app-network
+      - traefik
 
   mcp-server:
     build:
       context: ./backend
       dockerfile: Dockerfile.mcp
-    ports:
-      - "8001:8001"
     env_file:
       - ./backend/.env
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rag-mcp.rule=Host(`mcp.${DOMAIN}`)"
+      - "traefik.http.services.rag-mcp.loadbalancer.server.port=8001"
     networks:
       - app-network
+      - traefik
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "80:80"
+    restart: unless-stopped
     depends_on:
       - backend
-    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rag-frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.rag-frontend.priority=1"
+      - "traefik.http.services.rag-frontend.loadbalancer.server.port=80"
     networks:
       - app-network
+      - traefik
 
 networks:
   app-network:
     driver: bridge
+  traefik:
+    external: true
