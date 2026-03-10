@@ -9,27 +9,28 @@ from services.ingestion import ingest_document
 router = APIRouter(prefix="/api/documents")
 
 
+ALLOWED_EXTENSIONS = {".txt", ".text", ".md", ".markdown", ".pdf", ".docx", ".html", ".htm"}
+
+
 @router.post("/upload")
 async def upload_document(file: UploadFile, user_id: str = Depends(get_current_user)):
-    """Upload a text/markdown file for ingestion."""
+    """Upload a document for ingestion. Supports PDF, DOCX, HTML, Markdown, and text."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
-    allowed_types = {".txt", ".md", ".text", ".markdown"}
     ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-    if ext not in allowed_types:
+    if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {ext}. Allowed: {', '.join(sorted(allowed_types))}",
+            detail=f"Unsupported file type: {ext}. "
+            f"Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
-    content_bytes = await file.read()
-    content = content_bytes.decode("utf-8")
-
-    if not content.strip():
+    file_bytes = await file.read()
+    if not file_bytes:
         raise HTTPException(status_code=400, detail="File is empty")
 
-    result = ingest_document(content=content, filename=file.filename, user_id=user_id)
+    result = ingest_document(file_bytes=file_bytes, filename=file.filename, user_id=user_id)
 
     return {
         "filename": file.filename,

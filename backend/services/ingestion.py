@@ -1,16 +1,29 @@
-"""Document ingestion pipeline: hash, deduplicate, chunk, embed, store."""
+"""Document ingestion pipeline: parse, hash, deduplicate, chunk, embed, store."""
 
 import hashlib
+from pathlib import Path
 
 from db.client import get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
 from services.metadata import extract_metadata
+from services.parser import parse_document
+
+EXTENSION_TO_TYPE = {
+    ".pdf": "pdf",
+    ".docx": "docx",
+    ".html": "html",
+    ".htm": "html",
+    ".md": "markdown",
+    ".markdown": "markdown",
+    ".txt": "text",
+    ".text": "text",
+}
 
 
-def compute_content_hash(content: str) -> str:
-    """Compute SHA-256 hash of file content."""
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+def compute_content_hash(content: bytes) -> str:
+    """Compute SHA-256 hash of raw file bytes."""
+    return hashlib.sha256(content).hexdigest()
 
 
 def check_duplicate(content_hash: str, user_id: str) -> bool:
@@ -28,23 +41,29 @@ def check_duplicate(content_hash: str, user_id: str) -> bool:
 
 
 def ingest_document(
-    content: str,
+    file_bytes: bytes,
     filename: str,
     user_id: str,
 ) -> dict:
-    """Ingest a document: hash, deduplicate, chunk, embed, store.
+    """Ingest a document: parse, hash, deduplicate, chunk, embed, store.
 
     Returns dict with keys: duplicate (bool), chunks (int), document_ids (list).
     """
-    content_hash = compute_content_hash(content)
+    content_hash = compute_content_hash(file_bytes)
 
     if check_duplicate(content_hash, user_id):
         return {"duplicate": True, "chunks": 0, "document_ids": []}
 
-    chunks = chunk_text(content)
+    # Parse document to text using Docling
+    text = parse_document(file_bytes, filename)
+    if not text.strip():
+        return {"duplicate": False, "chunks": 0, "document_ids": []}
+
+    chunks = chunk_text(text)
     if not chunks:
         return {"duplicate": False, "chunks": 0, "document_ids": []}
 
+    source_type = EXTENSION_TO_TYPE.get(Path(filename).suffix.lower(), "text")
     sb = get_supabase()
     inserted_ids: list[str] = []
 
@@ -68,6 +87,7 @@ def ingest_document(
                     },
                     "user_id": user_id,
                     "source_filename": filename,
+                    "source_type": source_type,
                     "content_hash": content_hash,
                     "status": "processing",
                 }

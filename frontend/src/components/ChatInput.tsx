@@ -108,7 +108,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           type="file"
           ref={fileInputRef}
           hidden
-          accept=".txt,.md,.text,.markdown"
+          accept=".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm"
           onChange={handleFileSelect}
         />
         <IconButton
