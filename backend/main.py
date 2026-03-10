@@ -14,6 +14,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from routes.conversations import router as conversations_router
+
+app.include_router(conversations_router)
+
 
 @app.get("/api/health")
 async def health():
