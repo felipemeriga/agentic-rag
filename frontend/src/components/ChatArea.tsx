@@ -2,13 +2,13 @@ import { useEffect, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
-import type { Message } from "../lib/api";
+import type { Message, ChatFilters } from "../lib/api";
 
 interface ChatAreaProps {
   messages: Message[];
   streamingContent: string;
   isStreaming: boolean;
-  onSend: (message: string) => void;
+  onSend: (message: string, filters?: ChatFilters) => void;
 }
 
 export default function ChatArea({
