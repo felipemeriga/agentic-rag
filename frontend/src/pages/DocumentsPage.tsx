@@ -362,23 +362,29 @@ export default function DocumentsPage() {
                     transform: "translateY(-2px)",
                     borderColor: alpha("#6366f1", 0.3),
                     boxShadow: `0 4px 20px ${alpha("#6366f1", 0.15)}`,
+                    "& .folder-delete": { opacity: 0.6 },
                   },
                   position: "relative",
+                  overflow: "hidden",
                 }}
                 onClick={() => navigateToFolder(folder.id)}
               >
                 <IconButton
+                  className="folder-delete"
                   size="small"
                   sx={{
                     position: "absolute",
-                    top: 4,
-                    right: 4,
-                    opacity: 0.4,
-                    "&:hover": { opacity: 1 },
+                    top: 6,
+                    right: 6,
+                    opacity: 0,
+                    transition: "opacity 0.15s ease",
+                    bgcolor: alpha("#000000", 0.3),
+                    "&:hover": { opacity: 1, bgcolor: alpha("#ef4444", 0.2) },
+                    p: 0.5,
                   }}
                   onClick={(e) => handleDeleteFolder(e, folder.id)}
                 >
-                  <DeleteIcon sx={{ fontSize: 16 }} />
+                  <DeleteIcon sx={{ fontSize: 14 }} />
                 </IconButton>
                 <FolderIcon sx={{ fontSize: 48, color: "#6366f1" }} />
                 <Typography
