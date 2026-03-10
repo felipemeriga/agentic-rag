@@ -6,7 +6,14 @@ import voyageai
 
 logger = logging.getLogger(__name__)
 
-_client = voyageai.Client()
+_client: voyageai.Client | None = None
+
+
+def _get_client() -> voyageai.Client:
+    global _client
+    if _client is None:
+        _client = voyageai.Client()
+    return _client
 
 
 def rerank(query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
@@ -21,7 +28,7 @@ def rerank(query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
 
     try:
         texts = [doc["content"] for doc in documents]
-        result = _client.rerank(
+        result = _get_client().rerank(
             query=query,
             documents=texts,
             model="rerank-2",
