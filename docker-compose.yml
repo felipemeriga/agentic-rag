@@ -3,36 +3,31 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file:
-      - ./backend/.env
+    environment:
+      - ANTHROPIC_API_KEY
+      - VOYAGE_API_KEY
+      - TAVILY_API_KEY
+      - SUPABASE_URL
+      - SUPABASE_SERVICE_KEY
+      - SUPABASE_JWT_SECRET
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rag-backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.services.rag-backend.loadbalancer.server.port=8000"
-    networks:
-      - app-network
-      - traefik
 
   mcp-server:
     build:
       context: ./backend
       dockerfile: Dockerfile.mcp
-    env_file:
-      - ./backend/.env
+    environment:
+      - ANTHROPIC_API_KEY
+      - VOYAGE_API_KEY
+      - SUPABASE_URL
+      - SUPABASE_SERVICE_KEY
+      - MCP_API_KEY
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rag-mcp.rule=Host(`mcp.${DOMAIN}`)"
-      - "traefik.http.services.rag-mcp.loadbalancer.server.port=8001"
-    networks:
-      - app-network
-      - traefik
 
   frontend:
     build:
@@ -41,17 +36,3 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rag-frontend.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.rag-frontend.priority=1"
-      - "traefik.http.services.rag-frontend.loadbalancer.server.port=80"
-    networks:
-      - app-network
-      - traefik
-
-networks:
-  app-network:
-    driver: bridge
-  traefik:
-    external: true
