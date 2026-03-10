@@ -35,6 +35,7 @@ create table documents (
   metadata jsonb,
   user_id uuid references auth.users(id) on delete cascade,
   source_filename text,
+  source_type text,
   content_hash text,
   status text not null default 'completed' check (status in ('processing', 'completed', 'failed')),
   created_at timestamptz default now()
