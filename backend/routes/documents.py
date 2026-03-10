@@ -72,6 +72,33 @@ async def list_documents(user_id: str = Depends(get_current_user)):
     return list(files.values())
 
 
+@router.get("/filters")
+async def get_filters(user_id: str = Depends(get_current_user)):
+    """Return available topics and keywords for the user's documents."""
+    sb = get_supabase()
+    result = (
+        sb.table("documents")
+        .select("metadata")
+        .or_(f"user_id.eq.{user_id},user_id.is.null")
+        .not_.is_("metadata", "null")
+        .execute()
+    )
+
+    topics: set[str] = set()
+    keywords: set[str] = set()
+    for doc in result.data:
+        meta = doc.get("metadata") or {}
+        if meta.get("topic") and meta["topic"] != "unknown":
+            topics.add(meta["topic"])
+        for kw in meta.get("keywords", []):
+            keywords.add(kw)
+
+    return {
+        "topics": sorted(topics),
+        "keywords": sorted(keywords),
+    }
+
+
 @router.delete("/{filename}")
 async def delete_document(filename: str, user_id: str = Depends(get_current_user)):
     """Delete all chunks for a given filename belonging to the user."""

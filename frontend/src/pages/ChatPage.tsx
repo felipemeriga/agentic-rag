@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Box } from "@mui/material";
 import Sidebar from "../components/Sidebar";
 import ChatArea from "../components/ChatArea";
-import type { Message } from "../lib/api";
+import type { Message, ChatFilters } from "../lib/api";
 import { streamChat } from "../lib/api";
 import { useConversations } from "../hooks/useConversations";
 
@@ -22,7 +22,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const streamingRef = useRef("");
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, filters?: ChatFilters) => {
     if (!selectedId || isStreaming) return;
 
     const userMsg: Message = {
@@ -56,7 +56,8 @@ export default function ChatPage() {
           streamingRef.current = "";
           setIsStreaming(false);
           loadConversations();
-        }
+        },
+        filters,
       );
     } catch {
       setIsStreaming(false);

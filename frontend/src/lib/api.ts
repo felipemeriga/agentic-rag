@@ -62,17 +62,38 @@ export async function fetchConversation(
   return res.json();
 }
 
+export interface ChatFilters {
+  topic?: string;
+  keyword?: string;
+}
+
+export interface DocumentFilters {
+  topics: string[];
+  keywords: string[];
+}
+
+export async function fetchDocumentFilters(): Promise<DocumentFilters> {
+  const res = await apiFetch("/api/documents/filters");
+  return res.json();
+}
+
 export async function streamChat(
   conversationId: string,
   content: string,
   onToken: (token: string) => void,
-  onDone: () => void
+  onDone: () => void,
+  filters?: ChatFilters
 ): Promise<void> {
   const headers = await getAuthHeaders();
   const response = await fetch("/api/chat", {
     method: "POST",
     headers,
-    body: JSON.stringify({ conversation_id: conversationId, content }),
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      content,
+      topic: filters?.topic || null,
+      keyword: filters?.keyword || null,
+    }),
   });
 
   if (!response.ok) {

@@ -11,6 +11,8 @@ router = APIRouter(prefix="/api")
 class ChatRequest(BaseModel):
     conversation_id: str
     content: str
+    topic: str | None = None
+    keyword: str | None = None
 
 
 @router.post("/chat")
@@ -20,6 +22,8 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
             conversation_id=request.conversation_id,
             user_message=request.content,
             user_id=user_id,
+            topic=request.topic,
+            keyword=request.keyword,
         )
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
