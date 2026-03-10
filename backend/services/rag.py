@@ -27,7 +27,11 @@ If the context doesn't contain relevant information, say so honestly.
 
 
 def stream_rag_response(
-    conversation_id: str, user_message: str, user_id: str
+    conversation_id: str,
+    user_message: str,
+    user_id: str,
+    topic: str | None = None,
+    keyword: str | None = None,
 ) -> Generator[str, None, None]:
     """Full RAG pipeline: save message, embed, search, stream Claude response."""
     sb = get_supabase()
@@ -49,8 +53,10 @@ def stream_rag_response(
     # 2. Embed query
     query_embedding = embed_query(user_message)
 
-    # 3. Search documents (user's + system)
-    context_chunks = search_documents(query_embedding, user_id=user_id)
+    # 3. Search documents (user's + system, with optional filters)
+    context_chunks = search_documents(
+        query_embedding, user_id=user_id, topic=topic, keyword=keyword
+    )
 
     # 4. Build system prompt
     system_prompt = build_system_prompt(context_chunks)
