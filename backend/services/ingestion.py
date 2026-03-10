@@ -5,6 +5,7 @@ import hashlib
 from db.client import get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
+from services.metadata import extract_metadata
 
 
 def compute_content_hash(content: str) -> str:
@@ -50,6 +51,7 @@ def ingest_document(
     # Insert all chunks with status=processing
     for i, chunk in enumerate(chunks):
         embedding = embed_document(chunk)
+        meta = extract_metadata(chunk)
 
         result = (
             sb.table("documents")
@@ -61,6 +63,8 @@ def ingest_document(
                         "source_filename": filename,
                         "chunk_index": i,
                         "total_chunks": len(chunks),
+                        "topic": meta["topic"],
+                        "keywords": meta["keywords"],
                     },
                     "user_id": user_id,
                     "source_filename": filename,
