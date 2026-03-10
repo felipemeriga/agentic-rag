@@ -61,3 +61,50 @@ export async function fetchConversation(
   const res = await apiFetch(`/api/conversations/${id}`);
   return res.json();
 }
+
+export async function streamChat(
+  conversationId: string,
+  content: string,
+  onToken: (token: string) => void,
+  onDone: () => void
+): Promise<void> {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ conversation_id: conversationId, content }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Chat error: ${response.status}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const data = JSON.parse(line.slice(6));
+        if (data.done) {
+          onDone();
+          return;
+        }
+        if (data.token) {
+          onToken(data.token);
+        }
+      }
+    }
+  }
+  onDone();
+}

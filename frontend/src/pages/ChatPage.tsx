@@ -1,19 +1,24 @@
-import { useState, useEffect } from "react";
-import { Box, Typography } from "@mui/material";
+import { useState, useEffect, useRef } from "react";
+import { Box } from "@mui/material";
 import Sidebar from "../components/Sidebar";
+import ChatArea from "../components/ChatArea";
 import {
   Conversation,
+  Message,
   fetchConversations,
   createConversation,
   deleteConversation,
   fetchConversation,
-  Message,
+  streamChat,
 } from "../lib/api";
 
 export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [streamingContent, setStreamingContent] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const streamingRef = useRef("");
 
   const loadConversations = async (autoSelect = false) => {
     const convs = await fetchConversations();
@@ -53,6 +58,49 @@ export default function ChatPage() {
     });
   };
 
+  const handleSend = async (content: string) => {
+    if (!selectedId || isStreaming) return;
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsStreaming(true);
+    setStreamingContent("");
+    streamingRef.current = "";
+
+    try {
+      await streamChat(
+        selectedId,
+        content,
+        (token) => {
+          streamingRef.current += token;
+          setStreamingContent(streamingRef.current);
+        },
+        () => {
+          const assistantMsg: Message = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: streamingRef.current,
+            created_at: new Date().toISOString(),
+          };
+          setMessages((msgs) => [...msgs, assistantMsg]);
+          setStreamingContent("");
+          streamingRef.current = "";
+          setIsStreaming(false);
+          loadConversations();
+        }
+      );
+    } catch {
+      setIsStreaming(false);
+      setStreamingContent("");
+      streamingRef.current = "";
+    }
+  };
+
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       <Sidebar
@@ -62,25 +110,12 @@ export default function ChatPage() {
         onNew={handleNew}
         onDelete={handleDelete}
       />
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {selectedId ? (
-          <Typography color="text.secondary">
-            {messages.length} messages (chat input coming next)
-          </Typography>
-        ) : (
-          <Typography color="text.secondary">
-            Select or create a conversation
-          </Typography>
-        )}
-      </Box>
+      <ChatArea
+        messages={messages}
+        streamingContent={streamingContent}
+        isStreaming={isStreaming}
+        onSend={handleSend}
+      />
     </Box>
   );
 }
