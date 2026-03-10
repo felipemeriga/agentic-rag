@@ -129,7 +129,7 @@ $$;
 -- Execute a read-only SQL query (for text-to-SQL tool)
 create or replace function execute_readonly_query(query_text text)
 returns jsonb
-language plpgsql stable security definer
+language plpgsql security definer
 as $$
 declare
   result jsonb;
@@ -144,9 +144,6 @@ begin
   then
     raise exception 'Query contains forbidden keywords';
   end if;
-
-  -- Enforce read-only at the engine level
-  set local transaction_read_only = on;
 
   execute format('select jsonb_agg(row_to_json(t)) from (%s) t', query_text) into result;
   return coalesce(result, '[]'::jsonb);
