@@ -11,6 +11,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "supabase>=2.28.0",
     "uvicorn[standard]>=0.41.0",
+    "tavily-python>=0.5.0",
     "voyageai>=0.3.7",
 ]
 
