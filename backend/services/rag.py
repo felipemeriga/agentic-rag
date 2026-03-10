@@ -1,4 +1,4 @@
-"""RAG pipeline: embed query, search, stream Claude response."""
+"""Agentic RAG pipeline: tool-use loop with streaming."""
 
 import json
 import os
@@ -7,23 +7,19 @@ from collections.abc import Generator
 import anthropic
 
 from db.client import get_supabase
-from services.embeddings import embed_query
-from services.search import search_documents
+from services.tools import TOOL_DEFINITIONS, execute_tool
 
+SYSTEM_PROMPT = """You are a helpful assistant with access to tools.
 
-def build_system_prompt(context_chunks: list[dict]) -> str:
-    """Build system prompt with retrieved context."""
-    if not context_chunks:
-        return "You are a helpful assistant. No relevant documents were found for this query."
+You have three tools available:
+1. knowledge_base_search - Search the user's uploaded documents
+2. query_documents_metadata - Query structured info about the user's documents (counts, types, \
+topics)
+3. web_search - Search the web when the knowledge base doesn't have the answer
 
-    context = "\n\n---\n\n".join([chunk["content"] for chunk in context_chunks])
-    return f"""You are a helpful assistant that answers questions based on the provided context.
-Use the following retrieved documents to answer the user's question.
-If the context doesn't contain relevant information, say so honestly.
-
-<context>
-{context}
-</context>"""
+Use the appropriate tool(s) to answer the user's question. You may call multiple tools if needed.
+If a tool returns no results, try another approach or tool.
+When answering, cite your sources when possible."""
 
 
 def stream_rag_response(
@@ -33,7 +29,7 @@ def stream_rag_response(
     topic: str | None = None,
     keyword: str | None = None,
 ) -> Generator[str, None, None]:
-    """Full RAG pipeline: save message, embed, search, stream Claude response."""
+    """Agentic RAG pipeline: save message, run tool-use loop, stream response."""
     sb = get_supabase()
 
     # 1. Save user message
@@ -50,18 +46,7 @@ def stream_rag_response(
         "user_id", user_id
     ).execute()
 
-    # 2. Embed query
-    query_embedding = embed_query(user_message)
-
-    # 3. Hybrid search: vector + keyword → RRF → rerank
-    context_chunks = search_documents(
-        query_embedding, query_text=user_message, user_id=user_id, topic=topic, keyword=keyword
-    )
-
-    # 4. Build system prompt
-    system_prompt = build_system_prompt(context_chunks)
-
-    # 5. Fetch conversation history
+    # 2. Fetch conversation history
     history = (
         sb.table("messages")
         .select("role, content")
@@ -69,24 +54,54 @@ def stream_rag_response(
         .order("created_at")
         .execute()
     )
-
     messages = [{"role": m["role"], "content": m["content"]} for m in history.data]
 
-    # 6. Stream Claude response
+    # 3. Tool-use loop (max 10 rounds to prevent runaway)
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     full_response = ""
+    max_rounds = 10
 
-    with client.messages.stream(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        system=system_prompt,
-        messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            full_response += text
-            yield f"data: {json.dumps({'token': text})}\n\n"
+    for _ in range(max_rounds):
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+            tools=TOOL_DEFINITIONS,
+        )
 
-    # 7. Save assistant message
+        if response.stop_reason == "tool_use":
+            # Add assistant message with tool calls
+            messages.append({"role": "assistant", "content": response.content})
+
+            # Execute each tool call
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    result_text = execute_tool(block.name, block.input, user_id, topic, keyword)
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result_text,
+                        }
+                    )
+
+            messages.append({"role": "user", "content": tool_results})
+            continue
+
+        # Claude is done with tools — extract the final text response
+        for block in response.content:
+            if hasattr(block, "text"):
+                full_response += block.text
+                yield f"data: {json.dumps({'token': block.text})}\n\n"
+        break
+    else:
+        # Exhausted max rounds
+        full_response = "I was unable to complete the request after multiple attempts."
+        yield f"data: {json.dumps({'token': full_response})}\n\n"
+
+    # 5. Save assistant message
     sb.table("messages").insert(
         {
             "conversation_id": conversation_id,

@@ -9,6 +9,7 @@ import {
   MenuItem,
   ListSubheader,
   Tooltip,
+  alpha,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -77,7 +78,16 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     availableFilters.topics.length > 0 || availableFilters.keywords.length > 0;
 
   return (
-    <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+    <Box
+      sx={{
+        borderTop: 1,
+        borderColor: "divider",
+        bgcolor: alpha("#0d0d15", 0.5),
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+      }}
+    >
+      <Box sx={{ px: 2, py: 2 }}>
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: uploadedFile || hasFilters ? 1 : 0 }}>
         {uploadedFile && (
           <Chip
@@ -188,6 +198,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         >
           <SendIcon />
         </IconButton>
+      </Box>
       </Box>
     </Box>
   );

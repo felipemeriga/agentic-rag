@@ -28,6 +28,21 @@ create table messages (
   created_at timestamptz default now()
 );
 
+create table folders (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  parent_id uuid references folders(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now()
+);
+
+alter table folders enable row level security;
+
+create policy "Users manage own folders"
+  on folders for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 create table documents (
   id uuid primary key default gen_random_uuid(),
   content text not null,
@@ -37,6 +52,7 @@ create table documents (
   source_filename text,
   source_type text,
   content_hash text,
+  folder_id uuid references folders(id) on delete set null,
   status text not null default 'completed' check (status in ('processing', 'completed', 'failed')),
   created_at timestamptz default now()
 );
@@ -124,4 +140,28 @@ as $$
     and (filter_keyword is null or metadata->'keywords' ? filter_keyword)
   order by rank desc
   limit match_count;
+$$;
+
+-- Execute a read-only SQL query (for text-to-SQL tool)
+create or replace function execute_readonly_query(query_text text)
+returns jsonb
+language plpgsql security definer
+as $$
+declare
+  result jsonb;
+begin
+  -- Only allow SELECT statements
+  if not (trim(upper(query_text)) like 'SELECT%') then
+    raise exception 'Only SELECT queries are allowed';
+  end if;
+
+  -- Block dangerous keywords as defense-in-depth
+  if trim(upper(query_text)) ~ '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b'
+  then
+    raise exception 'Query contains forbidden keywords';
+  end if;
+
+  execute format('select jsonb_agg(row_to_json(t)) from (%s) t', query_text) into result;
+  return coalesce(result, '[]'::jsonb);
+end;
 $$;

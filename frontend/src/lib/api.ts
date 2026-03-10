@@ -135,6 +135,7 @@ export interface DocumentInfo {
   chunks: number;
   status: "processing" | "completed" | "failed";
   created_at: string;
+  folder_id: string | null;
 }
 
 export interface UploadResult {
@@ -144,30 +145,105 @@ export interface UploadResult {
   document_ids: string[];
 }
 
-export async function fetchDocuments(): Promise<DocumentInfo[]> {
-  const res = await apiFetch("/api/documents");
+export async function fetchDocuments(
+  folderId?: string | null
+): Promise<DocumentInfo[]> {
+  const params = folderId ? `?folder_id=${folderId}` : "";
+  const res = await apiFetch(`/api/documents${params}`);
   return res.json();
 }
 
-export async function uploadDocument(file: File): Promise<UploadResult> {
+export async function uploadDocument(
+  file: File,
+  folderId?: string | null
+): Promise<UploadResult> {
   const { Authorization } = await getAuthHeaders();
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch("/api/documents/upload", {
+  const params = folderId ? `?folder_id=${folderId}` : "";
+  const response = await fetch(`/api/documents/upload${params}`, {
     method: "POST",
     headers: { Authorization },
     body: formData,
   });
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: "Upload failed" }));
+    const err = await response
+      .json()
+      .catch(() => ({ detail: "Upload failed" }));
     throw new Error(err.detail || `Upload error: ${response.status}`);
   }
   return response.json();
+}
+
+export async function moveDocument(
+  filename: string,
+  folderId: string | null
+): Promise<void> {
+  await apiFetch(`/api/documents/${encodeURIComponent(filename)}/move`, {
+    method: "PATCH",
+    body: JSON.stringify({ folder_id: folderId }),
+  });
 }
 
 export async function deleteDocument(filename: string): Promise<void> {
   await apiFetch(`/api/documents/${encodeURIComponent(filename)}`, {
     method: "DELETE",
   });
+}
+
+// --- Folders ---
+
+export interface Folder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  user_id: string;
+  created_at: string;
+}
+
+export interface Breadcrumb {
+  id: string;
+  name: string;
+}
+
+export async function fetchFolders(
+  parentId?: string | null
+): Promise<Folder[]> {
+  const params = parentId ? `?parent_id=${parentId}` : "";
+  const res = await apiFetch(`/api/folders${params}`);
+  return res.json();
+}
+
+export async function createFolder(
+  name: string,
+  parentId?: string | null
+): Promise<Folder> {
+  const res = await apiFetch("/api/folders", {
+    method: "POST",
+    body: JSON.stringify({ name, parent_id: parentId || null }),
+  });
+  return res.json();
+}
+
+export async function renameFolder(
+  folderId: string,
+  name: string
+): Promise<Folder> {
+  const res = await apiFetch(`/api/folders/${folderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+  return res.json();
+}
+
+export async function deleteFolder(folderId: string): Promise<void> {
+  await apiFetch(`/api/folders/${folderId}`, { method: "DELETE" });
+}
+
+export async function fetchBreadcrumbs(
+  folderId: string
+): Promise<Breadcrumb[]> {
+  const res = await apiFetch(`/api/folders/${folderId}/breadcrumbs`);
+  return res.json();
 }

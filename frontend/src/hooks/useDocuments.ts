@@ -4,62 +4,137 @@ import {
   fetchDocuments,
   uploadDocument as apiUpload,
   deleteDocument as apiDelete,
+  moveDocument as apiMove,
 } from "../lib/api";
 
-export function useDocuments() {
+export interface UploadTask {
+  id: string;
+  filename: string;
+  status: "uploading" | "processing" | "done" | "error" | "duplicate";
+  chunks?: number;
+  errorMessage?: string;
+}
+
+export function useDocuments(folderId?: string | null) {
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<UploadTask[]>([]);
+
+  const hasActiveUploads = uploads.some(
+    (u) => u.status === "uploading" || u.status === "processing",
+  );
 
   const loadDocuments = useCallback(async () => {
     try {
-      const docs = await fetchDocuments();
+      const docs = await fetchDocuments(folderId);
       setDocuments(docs);
     } catch {
       setError("Failed to load documents");
     }
-  }, []);
+  }, [folderId]);
 
   useEffect(() => {
     let active = true;
-    fetchDocuments().then((docs) => {
+    fetchDocuments(folderId).then((docs) => {
       if (active) setDocuments(docs);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [folderId]);
 
   const upload = useCallback(
-    async (file: File) => {
-      setUploading(true);
+    async (file: File, targetFolderId?: string | null) => {
+      const uploadToFolder = targetFolderId ?? folderId;
+      const taskId = crypto.randomUUID();
+      const task: UploadTask = {
+        id: taskId,
+        filename: file.name,
+        status: "uploading",
+      };
+      setUploads((prev) => [...prev, task]);
       setError(null);
+
       try {
-        const result = await apiUpload(file);
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === taskId ? { ...u, status: "processing" } : u,
+          ),
+        );
+        const result = await apiUpload(file, uploadToFolder);
+
         if (result.duplicate) {
-          setError("Document already uploaded (identical content detected)");
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.id === taskId ? { ...u, status: "duplicate" } : u,
+            ),
+          );
+        } else {
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.id === taskId
+                ? { ...u, status: "done", chunks: result.chunks }
+                : u,
+            ),
+          );
         }
         await loadDocuments();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
-      } finally {
-        setUploading(false);
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === taskId
+              ? { ...u, status: "error", errorMessage: msg }
+              : u,
+          ),
+        );
       }
     },
-    [loadDocuments],
+    [folderId, loadDocuments],
   );
 
-  const remove = useCallback(
-    async (filename: string) => {
+  const clearUploads = useCallback(() => {
+    setUploads((prev) =>
+      prev.filter(
+        (u) => u.status === "uploading" || u.status === "processing",
+      ),
+    );
+  }, []);
+
+  const move = useCallback(
+    async (filename: string, targetFolderId: string | null) => {
       try {
-        await apiDelete(filename);
-        setDocuments((prev) => prev.filter((d) => d.source_filename !== filename));
+        await apiMove(filename, targetFolderId);
+        setDocuments((prev) =>
+          prev.filter((d) => d.source_filename !== filename),
+        );
       } catch {
-        setError("Failed to delete document");
+        setError("Failed to move document");
       }
     },
     [],
   );
 
-  return { documents, uploading, error, upload, remove, loadDocuments };
+  const remove = useCallback(async (filename: string) => {
+    try {
+      await apiDelete(filename);
+      setDocuments((prev) =>
+        prev.filter((d) => d.source_filename !== filename),
+      );
+    } catch {
+      setError("Failed to delete document");
+    }
+  }, []);
+
+  return {
+    documents,
+    uploads,
+    hasActiveUploads,
+    error,
+    upload,
+    move,
+    remove,
+    loadDocuments,
+    clearUploads,
+  };
 }
