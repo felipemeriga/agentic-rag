@@ -11,6 +11,8 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LogoutIcon from "@mui/icons-material/Logout";
+import DescriptionIcon from "@mui/icons-material/Description";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import type { Conversation } from "../lib/api";
 
@@ -30,6 +32,7 @@ export default function Sidebar({
   onDelete,
 }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <Box
@@ -50,6 +53,16 @@ export default function Sidebar({
           onClick={onNew}
         >
           New Chat
+        </Button>
+      </Box>
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Button
+          fullWidth
+          variant="text"
+          startIcon={<DescriptionIcon />}
+          onClick={() => navigate("/documents")}
+        >
+          Documents
         </Button>
       </Box>
       <Divider />

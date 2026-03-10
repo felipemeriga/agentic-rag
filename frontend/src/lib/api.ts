@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
+export async function getAuthHeaders(): Promise<Record<string, string>> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -107,4 +107,44 @@ export async function streamChat(
     }
   }
   onDone();
+}
+
+export interface DocumentInfo {
+  source_filename: string;
+  chunks: number;
+  created_at: string;
+}
+
+export interface UploadResult {
+  filename: string;
+  chunks: number;
+  document_ids: string[];
+}
+
+export async function fetchDocuments(): Promise<DocumentInfo[]> {
+  const res = await apiFetch("/api/documents");
+  return res.json();
+}
+
+export async function uploadDocument(file: File): Promise<UploadResult> {
+  const { Authorization } = await getAuthHeaders();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/documents/upload", {
+    method: "POST",
+    headers: { Authorization },
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(err.detail || `Upload error: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function deleteDocument(filename: string): Promise<void> {
+  await apiFetch(`/api/documents/${encodeURIComponent(filename)}`, {
+    method: "DELETE",
+  });
 }

@@ -1,3 +1,5 @@
+"""RAG pipeline: embed query, search, stream Claude response."""
+
 import json
 import os
 from collections.abc import Generator
@@ -6,19 +8,7 @@ import anthropic
 
 from db.client import get_supabase
 from services.embeddings import embed_query
-
-
-def search_documents(query_embedding: list[float], top_k: int = 5) -> list[dict]:
-    """Search documents by cosine similarity using pgvector."""
-    sb = get_supabase()
-    result = sb.rpc(
-        "match_documents",
-        {
-            "query_embedding": query_embedding,
-            "match_count": top_k,
-        },
-    ).execute()
-    return result.data
+from services.search import search_documents
 
 
 def build_system_prompt(context_chunks: list[dict]) -> str:
@@ -39,10 +29,7 @@ If the context doesn't contain relevant information, say so honestly.
 def stream_rag_response(
     conversation_id: str, user_message: str, user_id: str
 ) -> Generator[str, None, None]:
-    """
-    Full RAG pipeline: save message, embed, search, stream Claude response.
-    Yields SSE-formatted strings.
-    """
+    """Full RAG pipeline: save message, embed, search, stream Claude response."""
     sb = get_supabase()
 
     # 1. Save user message
@@ -54,7 +41,7 @@ def stream_rag_response(
         }
     ).execute()
 
-    # Update conversation's updated_at and title
+    # Update conversation title
     sb.table("conversations").update({"title": user_message[:50]}).eq("id", conversation_id).eq(
         "user_id", user_id
     ).execute()
@@ -62,8 +49,8 @@ def stream_rag_response(
     # 2. Embed query
     query_embedding = embed_query(user_message)
 
-    # 3. Search documents
-    context_chunks = search_documents(query_embedding)
+    # 3. Search documents (user's + system)
+    context_chunks = search_documents(query_embedding, user_id=user_id)
 
     # 4. Build system prompt
     system_prompt = build_system_prompt(context_chunks)
@@ -79,7 +66,7 @@ def stream_rag_response(
 
     messages = [{"role": m["role"], "content": m["content"]} for m in history.data]
 
-    # 6-7. Stream Claude response
+    # 6. Stream Claude response
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     full_response = ""
 
@@ -93,7 +80,7 @@ def stream_rag_response(
             full_response += text
             yield f"data: {json.dumps({'token': text})}\n\n"
 
-    # 8. Save assistant message
+    # 7. Save assistant message
     sb.table("messages").insert(
         {
             "conversation_id": conversation_id,

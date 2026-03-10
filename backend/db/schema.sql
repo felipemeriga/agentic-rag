@@ -33,6 +33,8 @@ create table documents (
   content text not null,
   embedding vector(1024),
   metadata jsonb,
+  user_id uuid references auth.users(id) on delete cascade,
+  source_filename text,
   created_at timestamptz default now()
 );
 
@@ -51,9 +53,17 @@ create policy "Users manage own messages"
   using (conversation_id in (select id from conversations where user_id = auth.uid()))
   with check (conversation_id in (select id from conversations where user_id = auth.uid()));
 
+alter table documents enable row level security;
+
+create policy "Users manage own documents"
+  on documents for all
+  using (user_id = auth.uid() or user_id is null)
+  with check (user_id = auth.uid());
+
 create or replace function match_documents(
   query_embedding vector(1024),
-  match_count int default 5
+  match_count int default 5,
+  filter_user_id uuid default null
 )
 returns table (
   id uuid,
@@ -69,6 +79,7 @@ as $$
     metadata,
     1 - (embedding <=> query_embedding) as similarity
   from documents
+  where user_id = filter_user_id or user_id is null
   order by embedding <=> query_embedding
   limit match_count;
 $$;
