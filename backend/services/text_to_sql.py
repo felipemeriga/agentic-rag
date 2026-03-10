@@ -82,6 +82,9 @@ def generate_and_execute_sql(question: str, user_id: str) -> dict:
             sql = re.sub(r"\n?```$", "", sql)
             sql = sql.strip()
 
+        # Strip trailing semicolons (breaks when wrapped in subquery)
+        sql = sql.rstrip(";").strip()
+
         if not _validate_sql(sql):
             return {"sql": sql, "results": [], "error": "Generated SQL failed safety validation"}
 
