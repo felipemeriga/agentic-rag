@@ -2,20 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
-import { Typography, Box } from "@mui/material";
-
-function ChatPage() {
-  return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="100vh"
-    >
-      <Typography variant="h4">Chat (coming soon)</Typography>
-    </Box>
-  );
-}
+import ChatPage from "./pages/ChatPage";
 
 function App() {
   return (
