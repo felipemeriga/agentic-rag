@@ -43,6 +43,11 @@ create table documents (
 
 create index on documents using hnsw (embedding vector_cosine_ops);
 
+-- Full-text search index for hybrid search
+alter table documents add column if not exists fts tsvector
+  generated always as (to_tsvector('english', content)) stored;
+create index on documents using gin (fts);
+
 alter table conversations enable row level security;
 alter table messages enable row level security;
 
@@ -88,5 +93,35 @@ as $$
     and (filter_topic is null or metadata->>'topic' = filter_topic)
     and (filter_keyword is null or metadata->'keywords' ? filter_keyword)
   order by embedding <=> query_embedding
+  limit match_count;
+$$;
+
+-- Keyword (full-text) search for hybrid search
+create or replace function keyword_search(
+  search_query text,
+  match_count int default 20,
+  filter_user_id uuid default null,
+  filter_topic text default null,
+  filter_keyword text default null
+)
+returns table (
+  id uuid,
+  content text,
+  metadata jsonb,
+  rank real
+)
+language sql stable
+as $$
+  select
+    id,
+    content,
+    metadata,
+    ts_rank(fts, websearch_to_tsquery('english', search_query)) as rank
+  from documents
+  where fts @@ websearch_to_tsquery('english', search_query)
+    and (user_id = filter_user_id or user_id is null)
+    and (filter_topic is null or metadata->>'topic' = filter_topic)
+    and (filter_keyword is null or metadata->'keywords' ? filter_keyword)
+  order by rank desc
   limit match_count;
 $$;

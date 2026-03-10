@@ -53,9 +53,9 @@ def stream_rag_response(
     # 2. Embed query
     query_embedding = embed_query(user_message)
 
-    # 3. Search documents (user's + system, with optional filters)
+    # 3. Hybrid search: vector + keyword → RRF → rerank
     context_chunks = search_documents(
-        query_embedding, user_id=user_id, topic=topic, keyword=keyword
+        query_embedding, query_text=user_message, user_id=user_id, topic=topic, keyword=keyword
     )
 
     # 4. Build system prompt
