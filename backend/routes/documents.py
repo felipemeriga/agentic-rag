@@ -29,12 +29,13 @@ async def upload_document(file: UploadFile, user_id: str = Depends(get_current_u
     if not content.strip():
         raise HTTPException(status_code=400, detail="File is empty")
 
-    doc_ids = ingest_document(content=content, filename=file.filename, user_id=user_id)
+    result = ingest_document(content=content, filename=file.filename, user_id=user_id)
 
     return {
         "filename": file.filename,
-        "chunks": len(doc_ids),
-        "document_ids": doc_ids,
+        "duplicate": result["duplicate"],
+        "chunks": result["chunks"],
+        "document_ids": result["document_ids"],
     }
 
 
@@ -44,7 +45,7 @@ async def list_documents(user_id: str = Depends(get_current_user)):
     sb = get_supabase()
     result = (
         sb.table("documents")
-        .select("id, source_filename, metadata, created_at")
+        .select("id, source_filename, metadata, status, created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .execute()
@@ -58,9 +59,15 @@ async def list_documents(user_id: str = Depends(get_current_user)):
             files[fname] = {
                 "source_filename": fname,
                 "chunks": 0,
+                "status": doc.get("status", "completed"),
                 "created_at": doc["created_at"],
             }
         files[fname]["chunks"] += 1
+        # If any chunk is processing or failed, reflect that
+        if doc.get("status") == "processing":
+            files[fname]["status"] = "processing"
+        elif doc.get("status") == "failed" and files[fname]["status"] != "processing":
+            files[fname]["status"] = "failed"
 
     return list(files.values())
 

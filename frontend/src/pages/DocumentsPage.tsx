@@ -9,6 +9,7 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  Chip,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -83,7 +84,18 @@ export default function DocumentsPage() {
               }
             >
               <ListItemText
-                primary={doc.source_filename}
+                primary={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {doc.source_filename}
+                    {doc.status !== "completed" && (
+                      <Chip
+                        label={doc.status}
+                        size="small"
+                        color={doc.status === "processing" ? "info" : "error"}
+                      />
+                    )}
+                  </Box>
+                }
                 secondary={`${doc.chunks} chunks · uploaded ${new Date(doc.created_at).toLocaleDateString()}`}
               />
             </ListItem>
