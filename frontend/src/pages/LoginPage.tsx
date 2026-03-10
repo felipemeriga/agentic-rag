@@ -10,6 +10,7 @@ import {
   Alert,
   Tab,
   Tabs,
+  alpha,
 } from "@mui/material";
 import { supabase } from "../lib/supabase";
 
@@ -52,9 +53,29 @@ export default function LoginPage() {
       alignItems="center"
       minHeight="100vh"
     >
-      <Card sx={{ width: 400 }}>
-        <CardContent>
-          <Typography variant="h5" gutterBottom align="center">
+      <Card
+        sx={{
+          width: 400,
+          bgcolor: alpha("#1a1a2e", 0.65),
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          border: `1px solid ${alpha("#ffffff", 0.08)}`,
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+        }}
+      >
+        <CardContent sx={{ p: 4 }}>
+          <Typography
+            variant="h4"
+            gutterBottom
+            align="center"
+            sx={{
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #6366f1, #ec4899)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              mb: 3,
+            }}
+          >
             Agentic RAG
           </Typography>
           <Tabs value={tab} onChange={(_, v) => setTab(v)} centered>

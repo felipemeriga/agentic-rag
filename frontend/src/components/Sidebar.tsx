@@ -7,6 +7,7 @@ import {
   Typography,
   Button,
   Divider,
+  alpha,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -43,6 +44,9 @@ export default function Sidebar({
         flexDirection: "column",
         borderRight: 1,
         borderColor: "divider",
+        bgcolor: alpha("#0d0d15", 0.8),
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
       }}
     >
       <Box sx={{ p: 2 }}>

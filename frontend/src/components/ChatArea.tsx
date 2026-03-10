@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, alpha } from "@mui/material";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import type { Message, ChatFilters } from "../lib/api";
@@ -30,12 +30,25 @@ export default function ChatArea({
           <Box
             sx={{
               display: "flex",
+              flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
               height: "100%",
+              gap: 2,
             }}
           >
-            <Typography color="text.secondary">
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 700,
+                background: "linear-gradient(135deg, #6366f1, #818cf8)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Agentic RAG
+            </Typography>
+            <Typography color="text.secondary" sx={{ color: alpha("#ffffff", 0.5) }}>
               Send a message to start the conversation
             </Typography>
           </Box>

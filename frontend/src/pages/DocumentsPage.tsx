@@ -10,6 +10,7 @@ import {
   Alert,
   CircularProgress,
   Chip,
+  alpha,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -60,7 +61,16 @@ export default function DocumentsPage() {
         <IconButton onClick={() => navigate("/")}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h5" sx={{ flex: 1 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            flex: 1,
+            fontWeight: 700,
+            background: "linear-gradient(135deg, #6366f1, #818cf8)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           Documents
         </Typography>
         <input
@@ -87,13 +97,15 @@ export default function DocumentsPage() {
         sx={{
           border: 2,
           borderStyle: "dashed",
-          borderColor: dragOver ? "primary.main" : "divider",
-          borderRadius: 2,
+          borderColor: dragOver ? "primary.main" : alpha("#ffffff", 0.1),
+          borderRadius: 3,
           p: 4,
           mb: 3,
           textAlign: "center",
-          bgcolor: dragOver ? "action.hover" : "transparent",
-          transition: "all 0.2s",
+          bgcolor: dragOver ? alpha("#6366f1", 0.08) : alpha("#1a1a2e", 0.3),
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          transition: "all 0.2s ease-in-out",
         }}
       >
         <Typography color="text.secondary">
