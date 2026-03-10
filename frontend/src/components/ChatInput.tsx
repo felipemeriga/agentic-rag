@@ -80,7 +80,6 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <Box
       sx={{
-        p: 2,
         borderTop: 1,
         borderColor: "divider",
         bgcolor: alpha("#0d0d15", 0.5),
@@ -88,6 +87,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         WebkitBackdropFilter: "blur(10px)",
       }}
     >
+      <Box sx={{ maxWidth: 768, mx: "auto", px: 2, py: 2 }}>
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: uploadedFile || hasFilters ? 1 : 0 }}>
         {uploadedFile && (
           <Chip
@@ -198,6 +198,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         >
           <SendIcon />
         </IconButton>
+      </Box>
       </Box>
     </Box>
   );

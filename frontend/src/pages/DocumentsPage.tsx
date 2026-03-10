@@ -9,8 +9,6 @@ import {
   ListItemIcon,
   IconButton,
   Alert,
-  Breadcrumbs,
-  Link,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -22,13 +20,12 @@ import {
   Paper,
   Badge,
   Tooltip,
+  Divider,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import FolderIcon from "@mui/icons-material/Folder";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
-import HomeIcon from "@mui/icons-material/Home";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -36,18 +33,15 @@ import ErrorIcon from "@mui/icons-material/Error";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloseIcon from "@mui/icons-material/Close";
+import FolderIcon from "@mui/icons-material/Folder";
 import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
 import type { UploadTask } from "../hooks/useDocuments";
-import {
-  fetchFolders,
-  createFolder,
-  deleteFolder,
-  fetchBreadcrumbs,
-} from "../lib/api";
-import type { Folder, Breadcrumb } from "../lib/api";
+import { createFolder, fetchFolders } from "../lib/api";
+import FolderTree from "../components/FolderTree";
 
 const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm";
+const SIDEBAR_WIDTH = 260;
 
 function UploadStatusIcon({ status }: { status: UploadTask["status"] }) {
   switch (status) {
@@ -55,11 +49,15 @@ function UploadStatusIcon({ status }: { status: UploadTask["status"] }) {
     case "processing":
       return null;
     case "done":
-      return <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />;
+      return (
+        <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
+      );
     case "error":
       return <ErrorIcon fontSize="small" sx={{ color: "error.main" }} />;
     case "duplicate":
-      return <ContentCopyIcon fontSize="small" sx={{ color: "warning.main" }} />;
+      return (
+        <ContentCopyIcon fontSize="small" sx={{ color: "warning.main" }} />
+      );
   }
 }
 
@@ -83,17 +81,16 @@ export default function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  // Folder navigation state
+  // Folder navigation
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [folderTreeKey, setFolderTreeKey] = useState(0);
 
   // Upload dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
-  // Folder drag-over tracking
+  // Folder drag-over for file grid area
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(
     null,
   );
@@ -109,7 +106,6 @@ export default function DocumentsPage() {
     clearUploads,
   } = useDocuments(currentFolderId);
 
-  // Wrap upload to auto-open the dialog
   const upload = useCallback(
     (file: File, targetFolderId?: string | null) => {
       setUploadDialogOpen(true);
@@ -117,15 +113,6 @@ export default function DocumentsPage() {
     },
     [rawUpload],
   );
-
-  // Load folders and breadcrumbs whenever currentFolderId changes
-  useEffect(() => {
-    fetchFolders(currentFolderId).then(setFolders).catch(() => {});
-    const loadBreadcrumbs = currentFolderId
-      ? fetchBreadcrumbs(currentFolderId)
-      : Promise.resolve([]);
-    loadBreadcrumbs.then(setBreadcrumbs).catch(() => {});
-  }, [currentFolderId]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -162,396 +149,430 @@ export default function DocumentsPage() {
     await createFolder(newFolderName.trim(), currentFolderId);
     setNewFolderName("");
     setNewFolderOpen(false);
-    fetchFolders(currentFolderId).then(setFolders).catch(() => {});
+    setFolderTreeKey((k) => k + 1);
   };
 
-  const handleDeleteFolder = async (
-    e: React.MouseEvent,
-    folderId: string,
-  ) => {
-    e.stopPropagation();
-    await deleteFolder(folderId);
-    setFolders((prev) => prev.filter((f) => f.id !== folderId));
-  };
+  const [subFolders, setSubFolders] = useState<
+    { id: string; name: string }[]
+  >([]);
 
-  const navigateToFolder = (folderId: string | null) => {
-    setCurrentFolderId(folderId);
-  };
+  // Load subfolders of current directory for the grid view
+  const loadSubFolders = useCallback(() => {
+    fetchFolders(currentFolderId)
+      .then((data) =>
+        setSubFolders(data.map((f) => ({ id: f.id, name: f.name }))),
+      )
+      .catch(() => {});
+  }, [currentFolderId]);
+
+  useEffect(() => {
+    loadSubFolders();
+  }, [loadSubFolders]);
 
   const isEmpty =
-    folders.length === 0 && documents.length === 0 && !hasActiveUploads;
+    subFolders.length === 0 && documents.length === 0 && !hasActiveUploads;
 
   return (
-    <Box sx={{ maxWidth: 900, mx: "auto", p: 4 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-        <IconButton onClick={() => navigate("/")}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography
-          variant="h5"
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* Sidebar */}
+      <Box
+        sx={{
+          width: SIDEBAR_WIDTH,
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          borderRight: 1,
+          borderColor: "divider",
+          bgcolor: alpha("#0d0d15", 0.8),
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        {/* Sidebar Header */}
+        <Box
           sx={{
-            flex: 1,
-            fontWeight: 700,
-            background: "linear-gradient(135deg, #6366f1, #818cf8)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Documents
-        </Typography>
-        <input
-          type="file"
-          ref={fileInputRef}
-          hidden
-          multiple
-          accept={ACCEPTED_TYPES}
-          onChange={handleFileSelect}
-        />
-        {uploads.length > 0 && (
-          <Tooltip title="Upload progress">
-            <IconButton onClick={() => setUploadDialogOpen(true)}>
-              <Badge
-                badgeContent={
-                  uploads.filter(
-                    (u) =>
-                      u.status === "uploading" || u.status === "processing",
-                  ).length || undefined
-                }
-                color="primary"
-              >
-                <CloudUploadIcon />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-        )}
-        <Button
-          variant="outlined"
-          startIcon={<CreateNewFolderIcon />}
-          onClick={() => setNewFolderOpen(true)}
-          size="small"
-        >
-          New Folder
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<UploadFileIcon />}
-          onClick={() => fileInputRef.current?.click()}
-          size="small"
-        >
-          Upload
-        </Button>
-      </Box>
-
-      {/* Breadcrumbs */}
-      <Breadcrumbs sx={{ mb: 3, ml: 6 }}>
-        <Link
-          component="button"
-          underline="hover"
-          sx={{
+            p: 2,
             display: "flex",
             alignItems: "center",
-            gap: 0.5,
-            color: currentFolderId ? "text.secondary" : "primary.main",
-            cursor: "pointer",
-            fontWeight: currentFolderId ? 400 : 600,
+            gap: 1,
           }}
-          onClick={() => navigateToFolder(null)}
         >
-          <HomeIcon fontSize="small" />
-          My Documents
-        </Link>
-        {breadcrumbs.map((bc, index) => {
-          const isLast = index === breadcrumbs.length - 1;
-          return (
-            <Link
-              key={bc.id}
-              component="button"
-              underline="hover"
-              sx={{
-                color: isLast ? "primary.main" : "text.secondary",
-                cursor: "pointer",
-                fontWeight: isLast ? 600 : 400,
-              }}
-              onClick={() => navigateToFolder(bc.id)}
-            >
-              {bc.name}
-            </Link>
-          );
-        })}
-      </Breadcrumbs>
+          <IconButton size="small" onClick={() => navigate("/")}>
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #6366f1, #818cf8)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              flex: 1,
+            }}
+          >
+            Documents
+          </Typography>
+        </Box>
+        <Divider />
 
-      {/* Drop zone */}
-      <Box
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        sx={{
-          border: 2,
-          borderStyle: "dashed",
-          borderColor: dragOver ? "primary.main" : alpha("#ffffff", 0.1),
-          borderRadius: 3,
-          p: 3,
-          mb: 3,
-          textAlign: "center",
-          bgcolor: dragOver
-            ? alpha("#6366f1", 0.08)
-            : alpha("#1a1a2e", 0.3),
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          transition: "all 0.2s ease-in-out",
-          cursor: "pointer",
-          "&:hover": {
-            borderColor: alpha("#6366f1", 0.4),
-            bgcolor: alpha("#6366f1", 0.04),
-          },
-        }}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <CloudUploadIcon
-          sx={{ fontSize: 40, color: alpha("#6366f1", 0.5), mb: 1 }}
-        />
-        <Typography color="text.secondary" variant="body2">
-          Drag and drop files here, or click to browse
-        </Typography>
-        <Typography
-          color="text.secondary"
-          variant="caption"
-          sx={{ mt: 0.5, display: "block" }}
-        >
-          PDF, DOCX, HTML, Markdown, or text
-        </Typography>
+        {/* Folder Tree */}
+        <Box sx={{ flex: 1, overflow: "auto" }}>
+          <FolderTree
+            key={folderTreeKey}
+            selectedFolderId={currentFolderId}
+            onSelectFolder={setCurrentFolderId}
+          />
+        </Box>
+
+        <Divider />
+        {/* Sidebar Actions */}
+        <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            size="small"
+            startIcon={<CreateNewFolderIcon />}
+            onClick={() => setNewFolderOpen(true)}
+          >
+            New Folder
+          </Button>
+        </Box>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Folders — Grid */}
-      {folders.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="overline"
-            sx={{
-              color: alpha("#ffffff", 0.4),
-              mb: 1,
-              display: "block",
-              letterSpacing: 1.5,
-            }}
-          >
-            Folders
+      {/* Main Content */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Toolbar */}
+        <Box
+          sx={{
+            px: 3,
+            py: 1.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: alpha("#0d0d15", 0.4),
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
+            {currentFolderId ? "Folder Contents" : "All Documents"}
           </Typography>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 2,
-            }}
-          >
-            {folders.map((folder) => (
-              <Paper
-                key={folder.id}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setDragOverFolderId(folder.id);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setDragOverFolderId((prev) =>
-                    prev === folder.id ? null : prev,
-                  );
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setDragOverFolderId(null);
-                  setDragOver(false);
-                  // Check if it's an existing document being moved
-                  const docFilename = e.dataTransfer.getData(
-                    "application/x-document-filename",
-                  );
-                  if (docFilename) {
-                    move(docFilename, folder.id);
-                    return;
-                  }
-                  // Otherwise it's new files being uploaded
-                  const files = Array.from(e.dataTransfer.files);
-                  for (const file of files) {
-                    upload(file, folder.id);
-                  }
-                }}
-                sx={{
-                  p: 2,
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 1,
-                  borderRadius: 3,
-                  bgcolor:
-                    dragOverFolderId === folder.id
-                      ? alpha("#6366f1", 0.12)
-                      : alpha("#1a1a2e", 0.5),
-                  border: `1px solid ${
-                    dragOverFolderId === folder.id
-                      ? alpha("#6366f1", 0.5)
-                      : alpha("#ffffff", 0.06)
-                  }`,
-                  transition:
-                    "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    borderColor: alpha("#6366f1", 0.3),
-                    boxShadow: `0 4px 20px ${alpha("#6366f1", 0.15)}`,
-                    "& .folder-delete": { opacity: 0.6 },
-                  },
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-                onClick={() => navigateToFolder(folder.id)}
+          {uploads.length > 0 && (
+            <Tooltip title="Upload progress">
+              <IconButton
+                size="small"
+                onClick={() => setUploadDialogOpen(true)}
               >
-                <IconButton
-                  className="folder-delete"
-                  size="small"
-                  sx={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    opacity: 0,
-                    transition: "opacity 0.15s ease",
-                    bgcolor: alpha("#000000", 0.3),
-                    "&:hover": { opacity: 1, bgcolor: alpha("#ef4444", 0.2) },
-                    p: 0.5,
-                  }}
-                  onClick={(e) => handleDeleteFolder(e, folder.id)}
+                <Badge
+                  badgeContent={
+                    uploads.filter(
+                      (u) =>
+                        u.status === "uploading" ||
+                        u.status === "processing",
+                    ).length || undefined
+                  }
+                  color="primary"
                 >
-                  <DeleteIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-                <FolderIcon sx={{ fontSize: 48, color: "#6366f1" }} />
-                <Typography
-                  variant="body2"
-                  noWrap
-                  sx={{
-                    maxWidth: "100%",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  {folder.name}
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
+                  <CloudUploadIcon fontSize="small" />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            hidden
+            multiple
+            accept={ACCEPTED_TYPES}
+            onChange={handleFileSelect}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<UploadFileIcon />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload
+          </Button>
         </Box>
-      )}
 
-      {/* Documents — List */}
-      {documents.length > 0 && (
-        <Box>
-          <Typography
-            variant="overline"
+        {/* Content area */}
+        <Box sx={{ flex: 1, overflow: "auto", p: 3 }}>
+          {/* Drop zone */}
+          <Box
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
             sx={{
-              color: alpha("#ffffff", 0.4),
-              mb: 1,
-              display: "block",
-              letterSpacing: 1.5,
+              border: 2,
+              borderStyle: "dashed",
+              borderColor: dragOver
+                ? "primary.main"
+                : alpha("#ffffff", 0.08),
+              borderRadius: 3,
+              p: 2.5,
+              mb: 3,
+              textAlign: "center",
+              bgcolor: dragOver
+                ? alpha("#6366f1", 0.08)
+                : alpha("#1a1a2e", 0.2),
+              transition: "all 0.2s ease-in-out",
+              cursor: "pointer",
+              "&:hover": {
+                borderColor: alpha("#6366f1", 0.3),
+                bgcolor: alpha("#6366f1", 0.04),
+              },
             }}
+            onClick={() => fileInputRef.current?.click()}
           >
-            Files
-          </Typography>
-          <List disablePadding>
-            {documents.map((doc) => (
-              <ListItem
-                key={doc.source_filename}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(
-                    "application/x-document-filename",
-                    doc.source_filename,
-                  );
-                  e.dataTransfer.effectAllowed = "move";
-                }}
+            <CloudUploadIcon
+              sx={{ fontSize: 32, color: alpha("#6366f1", 0.4), mb: 0.5 }}
+            />
+            <Typography color="text.secondary" variant="body2">
+              Drop files here or click to browse
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: alpha("#ffffff", 0.3) }}
+            >
+              PDF, DOCX, HTML, Markdown, or text
+            </Typography>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Sub-folders grid */}
+          {subFolders.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                variant="caption"
                 sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  bgcolor: alpha("#1a1a2e", 0.3),
-                  border: `1px solid ${alpha("#ffffff", 0.04)}`,
-                  cursor: "grab",
-                  "&:active": { cursor: "grabbing" },
-                  "&:hover": {
-                    bgcolor: alpha("#1a1a2e", 0.5),
-                    borderColor: alpha("#ffffff", 0.08),
-                  },
-                  transition: "all 0.15s ease",
+                  color: alpha("#ffffff", 0.35),
+                  mb: 1,
+                  display: "block",
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                  fontSize: "0.65rem",
                 }}
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    onClick={() => remove(doc.source_filename)}
-                    sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                }
               >
-                <ListItemIcon sx={{ minWidth: 56, gap: 0.5 }}>
-                  <DragIndicatorIcon
-                    sx={{
-                      fontSize: 16,
-                      color: alpha("#ffffff", 0.2),
-                      cursor: "grab",
+                Folders
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fill, minmax(150px, 1fr))",
+                  gap: 1.5,
+                }}
+              >
+                {subFolders.map((folder) => (
+                  <Paper
+                    key={folder.id}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverFolderId(folder.id);
                     }}
-                  />
-                  <InsertDriveFileIcon
-                    sx={{ color: alpha("#ffffff", 0.4) }}
-                  />
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Box
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverFolderId((prev) =>
+                        prev === folder.id ? null : prev,
+                      );
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverFolderId(null);
+                      setDragOver(false);
+                      const docFilename = e.dataTransfer.getData(
+                        "application/x-document-filename",
+                      );
+                      if (docFilename) {
+                        move(docFilename, folder.id);
+                        return;
+                      }
+                      const files = Array.from(e.dataTransfer.files);
+                      for (const file of files) {
+                        upload(file, folder.id);
+                      }
+                    }}
+                    sx={{
+                      p: 1.5,
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 0.5,
+                      borderRadius: 2.5,
+                      bgcolor:
+                        dragOverFolderId === folder.id
+                          ? alpha("#6366f1", 0.12)
+                          : alpha("#1a1a2e", 0.4),
+                      border: `1px solid ${
+                        dragOverFolderId === folder.id
+                          ? alpha("#6366f1", 0.5)
+                          : alpha("#ffffff", 0.04)
+                      }`,
+                      transition: "all 0.15s ease",
+                      "&:hover": {
+                        transform: "translateY(-1px)",
+                        borderColor: alpha("#6366f1", 0.25),
+                        boxShadow: `0 4px 16px ${alpha("#6366f1", 0.1)}`,
+                      },
+                    }}
+                    onClick={() => setCurrentFolderId(folder.id)}
+                  >
+                    <FolderIcon sx={{ fontSize: 36, color: "#6366f1" }} />
+                    <Typography
+                      variant="caption"
+                      noWrap
                       sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
+                        maxWidth: "100%",
+                        fontWeight: 500,
+                        textAlign: "center",
                       }}
                     >
-                      <Typography variant="body2" noWrap>
-                        {doc.source_filename}
-                      </Typography>
-                      {doc.status !== "completed" && (
-                        <Chip
-                          label={doc.status}
-                          size="small"
-                          color={
-                            doc.status === "processing" ? "info" : "error"
-                          }
-                        />
-                      )}
-                    </Box>
-                  }
-                  secondary={`${doc.chunks} chunks · ${new Date(doc.created_at).toLocaleDateString()}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      )}
+                      {folder.name}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Box>
+            </Box>
+          )}
 
-      {/* Empty state */}
-      {isEmpty && (
-        <Box sx={{ textAlign: "center", mt: 6 }}>
-          <FolderIcon
-            sx={{ fontSize: 64, color: alpha("#ffffff", 0.1), mb: 2 }}
-          />
-          <Typography color="text.secondary">
-            This folder is empty. Upload files or create subfolders.
-          </Typography>
+          {/* Documents list */}
+          {documents.length > 0 && (
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: alpha("#ffffff", 0.35),
+                  mb: 1,
+                  display: "block",
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                  fontSize: "0.65rem",
+                }}
+              >
+                Files
+              </Typography>
+              <List disablePadding>
+                {documents.map((doc) => (
+                  <ListItem
+                    key={doc.source_filename}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/x-document-filename",
+                        doc.source_filename,
+                      );
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 0.5,
+                      py: 0.75,
+                      bgcolor: alpha("#1a1a2e", 0.25),
+                      border: `1px solid ${alpha("#ffffff", 0.03)}`,
+                      cursor: "grab",
+                      "&:active": { cursor: "grabbing" },
+                      "&:hover": {
+                        bgcolor: alpha("#1a1a2e", 0.45),
+                        borderColor: alpha("#ffffff", 0.06),
+                      },
+                      transition: "all 0.15s ease",
+                    }}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        onClick={() => remove(doc.source_filename)}
+                        sx={{
+                          opacity: 0.4,
+                          "&:hover": { opacity: 1 },
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemIcon sx={{ minWidth: 48, gap: 0.5 }}>
+                      <DragIndicatorIcon
+                        sx={{
+                          fontSize: 14,
+                          color: alpha("#ffffff", 0.15),
+                        }}
+                      />
+                      <InsertDriveFileIcon
+                        sx={{
+                          fontSize: 18,
+                          color: alpha("#ffffff", 0.35),
+                        }}
+                      />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <Typography variant="body2" noWrap>
+                            {doc.source_filename}
+                          </Typography>
+                          {doc.status !== "completed" && (
+                            <Chip
+                              label={doc.status}
+                              size="small"
+                              color={
+                                doc.status === "processing"
+                                  ? "info"
+                                  : "error"
+                              }
+                            />
+                          )}
+                        </Box>
+                      }
+                      secondary={
+                        <Typography
+                          variant="caption"
+                          sx={{ color: alpha("#ffffff", 0.3) }}
+                        >
+                          {doc.chunks} chunks ·{" "}
+                          {new Date(doc.created_at).toLocaleDateString()}
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+
+          {/* Empty state */}
+          {isEmpty && (
+            <Box sx={{ textAlign: "center", mt: 8 }}>
+              <FolderIcon
+                sx={{ fontSize: 56, color: alpha("#ffffff", 0.08), mb: 1.5 }}
+              />
+              <Typography
+                variant="body2"
+                sx={{ color: alpha("#ffffff", 0.3) }}
+              >
+                {currentFolderId
+                  ? "This folder is empty"
+                  : "No documents yet. Upload files to get started."}
+              </Typography>
+            </Box>
+          )}
         </Box>
-      )}
+      </Box>
 
       {/* New Folder Dialog */}
       <Dialog
@@ -671,8 +692,8 @@ export default function DocumentsPage() {
                 >
                   <InsertDriveFileIcon
                     sx={{
-                      fontSize: 20,
-                      color: alpha("#ffffff", 0.4),
+                      fontSize: 18,
+                      color: alpha("#ffffff", 0.35),
                       flexShrink: 0,
                     }}
                   />
@@ -707,14 +728,9 @@ export default function DocumentsPage() {
                 {(task.status === "uploading" ||
                   task.status === "processing") && (
                   <LinearProgress
-                    variant={
-                      task.status === "uploading"
-                        ? "indeterminate"
-                        : "indeterminate"
-                    }
                     sx={{
                       borderRadius: 1,
-                      height: 3,
+                      height: 2,
                       bgcolor: alpha("#6366f1", 0.1),
                       "& .MuiLinearProgress-bar": {
                         bgcolor: "primary.main",
@@ -725,7 +741,7 @@ export default function DocumentsPage() {
                 {task.status === "error" && task.errorMessage && (
                   <Typography
                     variant="caption"
-                    sx={{ color: "error.main", pl: 3.5 }}
+                    sx={{ color: "error.main", pl: 3 }}
                   >
                     {task.errorMessage}
                   </Typography>

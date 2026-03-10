@@ -15,7 +15,6 @@ export default function MessageBubble({ role, content }: MessageBubbleProps) {
         display: "flex",
         justifyContent: isUser ? "flex-end" : "flex-start",
         mb: 2,
-        px: 2,
       }}
     >
       <Paper
