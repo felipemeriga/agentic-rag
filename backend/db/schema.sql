@@ -125,3 +125,21 @@ as $$
   order by rank desc
   limit match_count;
 $$;
+
+-- Execute a read-only SQL query (for text-to-SQL tool)
+create or replace function execute_readonly_query(query_text text)
+returns jsonb
+language plpgsql stable security definer
+as $$
+declare
+  result jsonb;
+begin
+  -- Only allow SELECT statements
+  if not (trim(upper(query_text)) like 'SELECT%') then
+    raise exception 'Only SELECT queries are allowed';
+  end if;
+
+  execute format('select jsonb_agg(row_to_json(t)) from (%s) t', query_text) into result;
+  return coalesce(result, '[]'::jsonb);
+end;
+$$;
