@@ -37,12 +37,7 @@ async def get_api_key(
 ) -> ApiKeyResponse | None:
     """Check if user has an active API key. Returns metadata only."""
     sb = get_supabase()
-    result = (
-        sb.table("api_keys")
-        .select("name, created_at")
-        .eq("user_id", user_id)
-        .execute()
-    )
+    result = sb.table("api_keys").select("name, created_at").eq("user_id", user_id).execute()
     if not result.data:
         return None
     row = result.data[0]

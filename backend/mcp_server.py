@@ -3,7 +3,6 @@
 import hashlib
 import json
 import os
-import sys
 
 from dotenv import load_dotenv
 
@@ -30,12 +29,7 @@ def _verify_api_key(key: str) -> str | None:
     """Verify API key and return user_id if valid."""
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     sb = get_supabase()
-    result = (
-        sb.table("api_keys")
-        .select("user_id")
-        .eq("key_hash", key_hash)
-        .execute()
-    )
+    result = sb.table("api_keys").select("user_id").eq("key_hash", key_hash).execute()
     if result.data:
         return result.data[0]["user_id"]
     return None
@@ -125,4 +119,5 @@ if __name__ == "__main__":
         return response
 
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=MCP_PORT)
