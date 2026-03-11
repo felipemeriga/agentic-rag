@@ -1,5 +1,6 @@
 """MCP server exposing knowledge base tools over SSE transport."""
 
+import contextvars
 import hashlib
 import json
 import os
@@ -21,8 +22,10 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "8001"))
 
 mcp = FastMCP("Agentic RAG Knowledge Base", host="0.0.0.0", port=MCP_PORT)
 
-# Store authenticated user_id per connection
-_authenticated_user_id: str | None = None
+# Per-request user_id via contextvars (safe for concurrent connections)
+_current_user_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "_current_user_id", default=None
+)
 
 
 def _verify_api_key(key: str) -> str | None:
@@ -44,13 +47,13 @@ def knowledge_base_search(query: str) -> str:
     Args:
         query: The search query to find relevant document chunks.
     """
-    if not _authenticated_user_id:
+    if not _current_user_id.get():
         return "Error: Not authenticated. Provide a valid API key."
     embedding = embed_query(query)
     results = search_documents(
         embedding,
         query_text=query,
-        user_id=_authenticated_user_id,
+        user_id=_current_user_id.get(),
     )
     if not results:
         return "No relevant documents found in the knowledge base."
@@ -72,10 +75,10 @@ def query_documents_metadata(question: str) -> str:
     Args:
         question: Natural language question about document metadata.
     """
-    if not _authenticated_user_id:
+    if not _current_user_id.get():
         return "Error: Not authenticated. Provide a valid API key."
 
-    result = generate_and_execute_sql(question, _authenticated_user_id)
+    result = generate_and_execute_sql(question, _current_user_id.get())
     if result["error"]:
         return f"Query failed: {result['error']}"
     if not result["results"]:
@@ -92,8 +95,6 @@ if __name__ == "__main__":
 
     @app.middleware("http")
     async def api_key_auth_middleware(request: Request, call_next):
-        global _authenticated_user_id
-
         # Allow health-check paths without auth
         path = request.url.path
         if path in ("/", "/health"):
@@ -114,7 +115,7 @@ if __name__ == "__main__":
                 status_code=401,
             )
 
-        _authenticated_user_id = user_id
+        _current_user_id.set(user_id)
         response = await call_next(request)
         return response
 
