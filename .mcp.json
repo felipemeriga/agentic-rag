@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "agentic-rag": {
+      "type": "sse",
+      "url": "http://localhost:8001/sse",
+      "headers": {
+        "Authorization": "Bearer <your-api-key>"
+      }
+    }
+  }
+}
