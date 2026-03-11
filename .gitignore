@@ -6,6 +6,9 @@
 # npm credentials
 .npmrc
 
+# MCP config (contains API keys)
+.mcp.json
+
 # Node
 node_modules/
 dist/

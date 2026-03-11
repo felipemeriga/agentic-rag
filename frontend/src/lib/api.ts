@@ -247,3 +247,35 @@ export async function fetchBreadcrumbs(
   const res = await apiFetch(`/api/folders/${folderId}/breadcrumbs`);
   return res.json();
 }
+
+// --- API Keys ---
+
+export interface ApiKeyInfo {
+  name: string;
+  created_at: string;
+}
+
+export interface CreatedApiKey {
+  key: string;
+  name: string;
+  created_at: string;
+}
+
+export async function fetchApiKey(): Promise<ApiKeyInfo | null> {
+  const res = await apiFetch("/api/api-keys");
+  return res.json();
+}
+
+export async function createApiKey(
+  name: string = "Default"
+): Promise<CreatedApiKey> {
+  const res = await apiFetch("/api/api-keys", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  return res.json();
+}
+
+export async function revokeApiKey(): Promise<void> {
+  await apiFetch("/api/api-keys", { method: "DELETE" });
+}
