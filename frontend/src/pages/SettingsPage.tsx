@@ -35,11 +35,15 @@ export default function SettingsPage() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadKey = useCallback(async () => {
     try {
+      setError(null);
       const data = await fetchApiKey();
       setKeyInfo(data);
+    } catch {
+      setError("Failed to load API key. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,9 +54,14 @@ export default function SettingsPage() {
   }, [loadKey]);
 
   const handleGenerate = async () => {
-    const result = await createApiKey("Default");
-    setNewKey(result.key);
-    setKeyInfo({ name: result.name, created_at: result.created_at });
+    try {
+      setError(null);
+      const result = await createApiKey("Default");
+      setNewKey(result.key);
+      setKeyInfo({ name: result.name, created_at: result.created_at });
+    } catch {
+      setError("Failed to generate API key. Please try again.");
+    }
   };
 
   const handleCopy = async () => {
@@ -64,10 +73,16 @@ export default function SettingsPage() {
   };
 
   const handleRevoke = async () => {
-    await revokeApiKey();
-    setKeyInfo(null);
-    setNewKey(null);
-    setRevokeOpen(false);
+    try {
+      setError(null);
+      await revokeApiKey();
+      setKeyInfo(null);
+      setNewKey(null);
+      setRevokeOpen(false);
+    } catch {
+      setError("Failed to revoke API key. Please try again.");
+      setRevokeOpen(false);
+    }
   };
 
   return (
@@ -111,6 +126,13 @@ export default function SettingsPage() {
           to your knowledge base. Only one key is active at a time — generating a
           new one replaces the old one.
         </Typography>
+
+        {/* Error alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
         {/* Existing key info */}
         {keyInfo && !newKey && (

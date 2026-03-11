@@ -90,8 +90,12 @@ if __name__ == "__main__":
     print(f"Starting MCP server on port {MCP_PORT}...")
     print(f"SSE endpoint: http://localhost:{MCP_PORT}/sse")
 
-    # Get the underlying Starlette app and add auth middleware
+    # Get the underlying Starlette app and add auth middleware + health endpoint
     app = mcp.sse_app()
+
+    @app.route("/health")
+    async def health(request: Request):
+        return JSONResponse({"status": "ok"})
 
     @app.middleware("http")
     async def api_key_auth_middleware(request: Request, call_next):
