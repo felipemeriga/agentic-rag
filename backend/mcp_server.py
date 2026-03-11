@@ -88,7 +88,7 @@ if __name__ == "__main__":
     print(f"SSE endpoint: http://localhost:{MCP_PORT}/sse")
 
     # Get the underlying Starlette app and add auth middleware
-    app = mcp.get_sse_app()
+    app = mcp.sse_app()
 
     @app.middleware("http")
     async def api_key_auth_middleware(request: Request, call_next):
