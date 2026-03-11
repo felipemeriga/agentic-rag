@@ -16,6 +16,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import type { Conversation } from "../lib/api";
@@ -106,6 +107,23 @@ export default function Sidebar({
           </ListItemIcon>
           <ListItemText
             primary="Documents"
+            primaryTypographyProps={{ variant: "body2" }}
+          />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => navigate("/settings")}
+          sx={{
+            borderRadius: 1.5,
+            py: 0.75,
+            mx: 0.5,
+            "&:hover": { bgcolor: alpha("#ffffff", 0.04) },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <SettingsIcon sx={{ fontSize: 18, color: alpha("#ffffff", 0.5) }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Settings"
             primaryTypographyProps={{ variant: "body2" }}
           />
         </ListItemButton>
