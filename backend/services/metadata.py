@@ -4,6 +4,8 @@ import json
 import os
 
 import anthropic
+from langsmith import traceable
+from langsmith.wrappers import wrap_anthropic
 
 EXTRACTION_PROMPT = """Extract metadata from the following text chunk.
 Return ONLY valid JSON with exactly these fields:
@@ -14,9 +16,10 @@ Text chunk:
 {chunk}"""
 
 
+@traceable(name="extract_metadata", run_type="chain")
 def extract_metadata(chunk: str) -> dict:
     """Extract topic and keywords from a chunk using Claude Haiku."""
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = wrap_anthropic(anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]))
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",

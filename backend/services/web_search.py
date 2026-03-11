@@ -3,6 +3,7 @@
 import logging
 import os
 
+from langsmith import traceable
 from tavily import TavilyClient
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ def _get_client() -> TavilyClient:
     return _client
 
 
+@traceable(name="web_search", run_type="tool")
 def web_search(query: str, max_results: int = 5) -> list[dict]:
     """Search the web and return extracted text content.
 
