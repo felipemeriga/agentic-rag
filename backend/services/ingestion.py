@@ -7,7 +7,7 @@ from db.client import get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
 from services.metadata import extract_metadata
-from services.parser import parse_document
+from services.parser import extract_from_image, parse_document
 
 EXTENSION_TO_TYPE = {
     ".pdf": "pdf",
@@ -18,7 +18,12 @@ EXTENSION_TO_TYPE = {
     ".markdown": "markdown",
     ".txt": "text",
     ".text": "text",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
 }
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
 
 def compute_content_hash(content: bytes) -> str:
@@ -40,23 +45,44 @@ def check_duplicate(content_hash: str, user_id: str) -> bool:
     return len(result.data) > 0
 
 
+def upload_image_to_storage(
+    file_bytes: bytes, user_id: str, content_hash: str, filename: str
+) -> str:
+    """Upload raw image to Supabase Storage and return the path."""
+    ext = Path(filename).suffix.lower().lstrip(".")
+    storage_path = f"{user_id}/{content_hash}.{ext}"
+    sb = get_supabase()
+    media_type = "image/png" if ext == "png" else "image/jpeg"
+    sb.storage.from_("images").upload(storage_path, file_bytes, {"content-type": media_type})
+    return storage_path
+
+
 def ingest_document(
     file_bytes: bytes,
     filename: str,
     user_id: str,
     folder_id: str | None = None,
 ) -> dict:
-    """Ingest a document: parse, hash, deduplicate, chunk, embed, store.
-
-    Returns dict with keys: duplicate (bool), chunks (int), document_ids (list).
-    """
+    """Ingest a document or image: parse, hash, deduplicate, chunk, embed, store."""
     content_hash = compute_content_hash(file_bytes)
 
     if check_duplicate(content_hash, user_id):
         return {"duplicate": True, "chunks": 0, "document_ids": []}
 
-    # Parse document to text using Docling
-    text = parse_document(file_bytes, filename)
+    ext = Path(filename).suffix.lower()
+    is_image = ext in IMAGE_EXTENSIONS
+    image_storage_path: str | None = None
+
+    # Upload image to storage before parsing
+    if is_image:
+        image_storage_path = upload_image_to_storage(file_bytes, user_id, content_hash, filename)
+
+    # Parse: image via Claude Vision, documents via Docling
+    if is_image:
+        text = extract_from_image(file_bytes, filename)
+    else:
+        text = parse_document(file_bytes, filename)
+
     if not text.strip():
         return {"duplicate": False, "chunks": 0, "document_ids": []}
 
@@ -64,25 +90,28 @@ def ingest_document(
     if not chunks:
         return {"duplicate": False, "chunks": 0, "document_ids": []}
 
-    source_type = EXTENSION_TO_TYPE.get(Path(filename).suffix.lower(), "text")
+    source_type = EXTENSION_TO_TYPE.get(ext, "text")
     sb = get_supabase()
     inserted_ids: list[str] = []
 
-    # Insert all chunks with status=processing
     for i, chunk in enumerate(chunks):
         embedding = embed_document(chunk)
         meta = extract_metadata(chunk)
 
+        metadata = {
+            "source_filename": filename,
+            "chunk_index": i,
+            "total_chunks": len(chunks),
+            "topic": meta["topic"],
+            "keywords": meta["keywords"],
+        }
+        if image_storage_path:
+            metadata["image_url"] = image_storage_path
+
         row = {
             "content": chunk,
             "embedding": embedding,
-            "metadata": {
-                "source_filename": filename,
-                "chunk_index": i,
-                "total_chunks": len(chunks),
-                "topic": meta["topic"],
-                "keywords": meta["keywords"],
-            },
+            "metadata": metadata,
             "user_id": user_id,
             "source_filename": filename,
             "source_type": source_type,
@@ -95,7 +124,6 @@ def ingest_document(
         result = sb.table("documents").insert(row).execute()
         inserted_ids.append(result.data[0]["id"])
 
-    # Mark all chunks as completed
     sb.table("documents").update({"status": "completed"}).eq("content_hash", content_hash).eq(
         "user_id", user_id
     ).execute()
