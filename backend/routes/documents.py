@@ -22,10 +22,15 @@ ALLOWED_EXTENSIONS = {
     ".png",
     ".jpg",
     ".jpeg",
+    ".mp3",
+    ".webm",
+    ".m4a",
 }
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+AUDIO_EXTENSIONS = {".mp3", ".webm", ".m4a"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25MB
 
 
 @router.post("/upload")
@@ -54,6 +59,12 @@ async def upload_document(
         raise HTTPException(
             status_code=400,
             detail=f"Image too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 10MB.",
+        )
+
+    if ext in AUDIO_EXTENSIONS and len(file_bytes) > MAX_AUDIO_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Audio too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 25MB.",
         )
 
     result = ingest_document(
@@ -182,18 +193,20 @@ async def delete_document(filename: str, user_id: str = Depends(get_current_user
         .limit(1)
         .execute()
     )
-    image_url = None
-    if docs.data:
-        image_url = (docs.data[0].get("metadata") or {}).get("image_url")
+    meta = (docs.data[0].get("metadata") or {}) if docs.data else {}
+    image_url = meta.get("image_url")
+    audio_url = meta.get("audio_url")
 
     # Delete document chunks
     sb.table("documents").delete().eq("source_filename", filename).eq("user_id", user_id).execute()
 
-    # Delete image from storage if it exists
-    if image_url:
-        try:
+    # Delete media from storage if it exists
+    try:
+        if image_url:
             sb.storage.from_("images").remove([image_url])
-        except Exception:
-            pass  # Non-critical: storage cleanup is best-effort
+        if audio_url:
+            sb.storage.from_("audio").remove([audio_url])
+    except Exception:
+        pass  # Non-critical: storage cleanup is best-effort
 
     return {"ok": True}

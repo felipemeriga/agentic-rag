@@ -76,3 +76,30 @@ def extract_from_image(file_bytes: bytes, filename: str) -> str:
     )
 
     return response.content[0].text
+
+
+AUDIO_MIME_TYPES = {
+    "mp3": "audio/mpeg",
+    "webm": "audio/webm",
+    "m4a": "audio/mp4",
+}
+
+
+@traceable(name="transcribe_audio", run_type="chain")
+def transcribe_audio(file_bytes: bytes, filename: str) -> str:
+    """Transcribe audio to text using OpenAI Whisper API."""
+    import openai
+
+    ext = filename.rsplit(".", 1)[-1].lower()
+    mime_type = AUDIO_MIME_TYPES.get(ext, "audio/mpeg")
+
+    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    audio_file = (filename, file_bytes, mime_type)
+
+    transcription = client.audio.transcriptions.create(
+        model="whisper-1",
+        file=audio_file,
+        response_format="text",
+    )
+
+    return transcription

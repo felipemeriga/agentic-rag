@@ -31,7 +31,7 @@ Notes:
     To search keywords use: metadata->>'keywords' ILIKE '%term%'
   - NEVER use ILIKE or text operators on jsonb columns.
     Always use ->> to extract as text first.
-  - source_type can be: pdf, docx, html, markdown, text, image
+  - source_type can be: pdf, docx, html, markdown, text, image, audio
   - Always filter by user_id = '{user_id}' to scope to the current user."""
 
 SQL_GENERATION_PROMPT = """You are a SQL expert. Generate a PostgreSQL SELECT query to answer the \

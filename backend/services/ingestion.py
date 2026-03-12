@@ -7,7 +7,7 @@ from db.client import get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
 from services.metadata import extract_metadata
-from services.parser import extract_from_image, parse_document
+from services.parser import extract_from_image, parse_document, transcribe_audio
 
 EXTENSION_TO_TYPE = {
     ".pdf": "pdf",
@@ -21,9 +21,13 @@ EXTENSION_TO_TYPE = {
     ".png": "image",
     ".jpg": "image",
     ".jpeg": "image",
+    ".mp3": "audio",
+    ".webm": "audio",
+    ".m4a": "audio",
 }
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+AUDIO_EXTENSIONS = {".mp3", ".webm", ".m4a"}
 
 
 def compute_content_hash(content: bytes) -> str:
@@ -57,6 +61,19 @@ def upload_image_to_storage(
     return storage_path
 
 
+def upload_audio_to_storage(
+    file_bytes: bytes, user_id: str, content_hash: str, filename: str
+) -> str:
+    """Upload raw audio to Supabase Storage and return the path."""
+    ext = Path(filename).suffix.lower().lstrip(".")
+    storage_path = f"{user_id}/{content_hash}.{ext}"
+    sb = get_supabase()
+    mime_types = {"mp3": "audio/mpeg", "webm": "audio/webm", "m4a": "audio/mp4"}
+    media_type = mime_types.get(ext, "audio/mpeg")
+    sb.storage.from_("audio").upload(storage_path, file_bytes, {"content-type": media_type})
+    return storage_path
+
+
 def ingest_document(
     file_bytes: bytes,
     filename: str,
@@ -71,15 +88,23 @@ def ingest_document(
 
     ext = Path(filename).suffix.lower()
     is_image = ext in IMAGE_EXTENSIONS
-    image_storage_path: str | None = None
+    is_audio = ext in AUDIO_EXTENSIONS
+    media_storage_path: str | None = None
+    media_type: str | None = None  # "image" or "audio"
 
-    # Upload image to storage before parsing
+    # Upload media to storage before parsing
     if is_image:
-        image_storage_path = upload_image_to_storage(file_bytes, user_id, content_hash, filename)
+        media_storage_path = upload_image_to_storage(file_bytes, user_id, content_hash, filename)
+        media_type = "image"
+    elif is_audio:
+        media_storage_path = upload_audio_to_storage(file_bytes, user_id, content_hash, filename)
+        media_type = "audio"
 
-    # Parse: image via Claude Vision, documents via Docling
+    # Parse: image via Claude Vision, audio via Whisper, documents via Docling
     if is_image:
         text = extract_from_image(file_bytes, filename)
+    elif is_audio:
+        text = transcribe_audio(file_bytes, filename)
     else:
         text = parse_document(file_bytes, filename)
 
@@ -105,8 +130,10 @@ def ingest_document(
             "topic": meta["topic"],
             "keywords": meta["keywords"],
         }
-        if image_storage_path:
-            metadata["image_url"] = image_storage_path
+        if media_storage_path and media_type == "image":
+            metadata["image_url"] = media_storage_path
+        elif media_storage_path and media_type == "audio":
+            metadata["audio_url"] = media_storage_path
 
         row = {
             "content": chunk,
