@@ -10,7 +10,22 @@ from services.ingestion import ingest_document
 router = APIRouter(prefix="/api/documents")
 
 
-ALLOWED_EXTENSIONS = {".txt", ".text", ".md", ".markdown", ".pdf", ".docx", ".html", ".htm"}
+ALLOWED_EXTENSIONS = {
+    ".txt",
+    ".text",
+    ".md",
+    ".markdown",
+    ".pdf",
+    ".docx",
+    ".html",
+    ".htm",
+    ".png",
+    ".jpg",
+    ".jpeg",
+}
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 @router.post("/upload")
@@ -34,6 +49,12 @@ async def upload_document(
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="File is empty")
+
+    if ext in IMAGE_EXTENSIONS and len(file_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Image too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 10MB.",
+        )
 
     result = ingest_document(
         file_bytes=file_bytes, filename=file.filename, user_id=user_id, folder_id=folder_id
@@ -151,5 +172,28 @@ async def move_document(
 async def delete_document(filename: str, user_id: str = Depends(get_current_user)):
     """Delete all chunks for a given filename belonging to the user."""
     sb = get_supabase()
+
+    # Check if document has stored images to clean up
+    docs = (
+        sb.table("documents")
+        .select("metadata")
+        .eq("source_filename", filename)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    image_url = None
+    if docs.data:
+        image_url = (docs.data[0].get("metadata") or {}).get("image_url")
+
+    # Delete document chunks
     sb.table("documents").delete().eq("source_filename", filename).eq("user_id", user_id).execute()
+
+    # Delete image from storage if it exists
+    if image_url:
+        try:
+            sb.storage.from_("images").remove([image_url])
+        except Exception:
+            pass  # Non-critical: storage cleanup is best-effort
+
     return {"ok": True}
