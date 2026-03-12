@@ -367,7 +367,7 @@ export default function DocumentsPage() {
               variant="caption"
               sx={{ color: alpha("#ffffff", 0.3) }}
             >
-              PDF, DOCX, HTML, Markdown, or text
+              PDF, DOCX, HTML, Markdown, text, PNG, or JPEG
             </Typography>
           </Box>
 
