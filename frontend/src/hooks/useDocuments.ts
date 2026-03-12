@@ -43,6 +43,15 @@ export function useDocuments(folderId?: string | null) {
     };
   }, [folderId]);
 
+  // Auto-refresh document list while uploads are active
+  useEffect(() => {
+    if (!hasActiveUploads) return;
+    const interval = setInterval(() => {
+      fetchDocuments(folderId).then(setDocuments).catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [hasActiveUploads, folderId]);
+
   const upload = useCallback(
     async (file: File, targetFolderId?: string | null) => {
       const uploadToFolder = targetFolderId ?? folderId;
@@ -88,6 +97,8 @@ export function useDocuments(folderId?: string | null) {
               : u,
           ),
         );
+        // Refresh list anyway — backend may have succeeded despite timeout
+        await loadDocuments();
       }
     },
     [folderId, loadDocuments],
