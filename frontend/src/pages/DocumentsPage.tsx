@@ -41,7 +41,7 @@ import type { UploadTask } from "../hooks/useDocuments";
 import { createFolder, fetchFolders, deleteFolder } from "../lib/api";
 import FolderTree from "../components/FolderTree";
 
-const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm";
+const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.png,.jpg,.jpeg";
 const SIDEBAR_WIDTH = 260;
 
 function UploadStatusIcon({ status }: { status: UploadTask["status"] }) {
