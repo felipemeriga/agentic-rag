@@ -5,6 +5,8 @@ import os
 from collections.abc import Generator
 
 import anthropic
+from langsmith import traceable
+from langsmith.wrappers import wrap_anthropic
 
 from db.client import get_supabase
 from services.tools import TOOL_DEFINITIONS, execute_tool
@@ -22,6 +24,7 @@ If a tool returns no results, try another approach or tool.
 When answering, cite your sources when possible."""
 
 
+@traceable(name="stream_rag_response", run_type="chain")
 def stream_rag_response(
     conversation_id: str,
     user_message: str,
@@ -57,7 +60,7 @@ def stream_rag_response(
     messages = [{"role": m["role"], "content": m["content"]} for m in history.data]
 
     # 3. Tool-use loop (max 10 rounds to prevent runaway)
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = wrap_anthropic(anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]))
     full_response = ""
     max_rounds = 10
 

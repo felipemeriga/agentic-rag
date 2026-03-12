@@ -5,6 +5,8 @@ import os
 import re
 
 import anthropic
+from langsmith import traceable
+from langsmith.wrappers import wrap_anthropic
 
 from db.client import get_supabase
 
@@ -54,13 +56,14 @@ def _validate_sql(sql: str) -> bool:
     return not forbidden.search(cleaned)
 
 
+@traceable(name="generate_and_execute_sql", run_type="chain")
 def generate_and_execute_sql(question: str, user_id: str) -> dict:
     """Generate SQL from natural language and execute it.
 
     Returns dict with keys: sql (the generated query), results (list of rows),
     error (string if failed).
     """
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = wrap_anthropic(anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]))
 
     prompt = SQL_GENERATION_PROMPT.format(
         schema=DOCUMENTS_SCHEMA.format(user_id=user_id),

@@ -1,5 +1,7 @@
 """Hybrid search: vector + keyword with RRF fusion and reranking."""
 
+from langsmith import traceable
+
 from db.client import get_supabase
 from services.rerank import rerank
 
@@ -72,6 +74,7 @@ def _reciprocal_rank_fusion(
     return [docs_by_id[doc_id] for doc_id in sorted_ids]
 
 
+@traceable(name="search_documents", run_type="retriever")
 def search_documents(
     query_embedding: list[float],
     query_text: str = "",

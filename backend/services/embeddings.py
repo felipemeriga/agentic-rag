@@ -1,12 +1,14 @@
 import os
 
 import voyageai
+from langsmith import traceable
 
 
 def get_voyage_client() -> voyageai.Client:
     return voyageai.Client(api_key=os.environ["VOYAGE_API_KEY"])
 
 
+@traceable(name="embed_query", run_type="embedding")
 def embed_query(text: str) -> list[float]:
     """Embed a single query string. Returns a 1024-dim vector."""
     client = get_voyage_client()
@@ -14,6 +16,7 @@ def embed_query(text: str) -> list[float]:
     return result.embeddings[0]
 
 
+@traceable(name="embed_document", run_type="embedding")
 def embed_document(text: str) -> list[float]:
     """Embed a document chunk. Returns a 1024-dim vector."""
     client = get_voyage_client()

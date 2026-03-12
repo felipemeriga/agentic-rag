@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from mcp.server.fastmcp import FastMCP
-from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from db.client import get_supabase
 from services.embeddings import embed_query
@@ -86,42 +86,61 @@ def query_documents_metadata(question: str) -> str:
     return f"SQL: {result['sql']}\nResults: {json.dumps(result['results'], default=str)}"
 
 
+class ApiKeyAuthMiddleware:
+    """Pure ASGI middleware for API key auth (SSE-compatible, no buffering)."""
+
+    SKIP_PATHS = {"/", "/health"}
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        # Health endpoint
+        if path == "/health":
+            response = JSONResponse({"status": "ok"})
+            await response(scope, receive, send)
+            return
+
+        # Skip auth for root
+        if path in self.SKIP_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        # Extract Authorization header
+        headers = dict(scope.get("headers", []))
+        auth_value = headers.get(b"authorization", b"").decode()
+
+        if not auth_value.startswith("Bearer "):
+            response = JSONResponse(
+                {"error": "Missing Authorization: Bearer <api-key> header"},
+                status_code=401,
+            )
+            await response(scope, receive, send)
+            return
+
+        api_key = auth_value.split(" ", 1)[1]
+        user_id = _verify_api_key(api_key)
+        if not user_id:
+            response = JSONResponse({"error": "Invalid API key"}, status_code=401)
+            await response(scope, receive, send)
+            return
+
+        _current_user_id.set(user_id)
+        await self.app(scope, receive, send)
+
+
 if __name__ == "__main__":
     print(f"Starting MCP server on port {MCP_PORT}...")
     print(f"SSE endpoint: http://localhost:{MCP_PORT}/sse")
 
-    # Get the underlying Starlette app and add auth middleware + health endpoint
-    app = mcp.sse_app()
-
-    @app.route("/health")
-    async def health(request: Request):
-        return JSONResponse({"status": "ok"})
-
-    @app.middleware("http")
-    async def api_key_auth_middleware(request: Request, call_next):
-        # Allow health-check paths without auth
-        path = request.url.path
-        if path in ("/", "/health"):
-            return await call_next(request)
-
-        auth_header = request.headers.get("authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                {"error": "Missing Authorization: Bearer <api-key> header"},
-                status_code=401,
-            )
-
-        api_key = auth_header.split(" ", 1)[1]
-        user_id = _verify_api_key(api_key)
-        if not user_id:
-            return JSONResponse(
-                {"error": "Invalid API key"},
-                status_code=401,
-            )
-
-        _current_user_id.set(user_id)
-        response = await call_next(request)
-        return response
+    sse_app = mcp.sse_app()
+    app = ApiKeyAuthMiddleware(sse_app)
 
     import uvicorn
 

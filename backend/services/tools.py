@@ -2,6 +2,8 @@
 
 import json
 
+from langsmith import traceable
+
 from services.embeddings import embed_query
 from services.search import search_documents
 from services.text_to_sql import generate_and_execute_sql
@@ -65,6 +67,7 @@ TOOL_DEFINITIONS = [
 ]
 
 
+@traceable(name="execute_tool", run_type="tool")
 def execute_tool(
     tool_name: str,
     tool_input: dict,
