@@ -23,6 +23,7 @@ import {
   Tooltip,
   Divider,
 } from "@mui/material";
+import { keyframes } from "@mui/system";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -35,13 +36,21 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloseIcon from "@mui/icons-material/Close";
 import FolderIcon from "@mui/icons-material/Folder";
+import MicIcon from "@mui/icons-material/Mic";
+import StopIcon from "@mui/icons-material/Stop";
 import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
 import type { UploadTask } from "../hooks/useDocuments";
 import { createFolder, fetchFolders, deleteFolder } from "../lib/api";
 import FolderTree from "../components/FolderTree";
 
-const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm";
+const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.png,.jpg,.jpeg,.mp3,.webm,.m4a";
+
+const pulse = keyframes`
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+`;
 const SIDEBAR_WIDTH = 260;
 
 function UploadStatusIcon({ status }: { status: UploadTask["status"] }) {
@@ -82,6 +91,12 @@ export default function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
+  // Audio recording
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+
   // Folder navigation
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -121,6 +136,69 @@ export default function DocumentsPage() {
     },
     [rawUpload],
   );
+
+  // Recording timer
+  useEffect(() => {
+    if (!isRecording) return;
+    const id = setInterval(() => setRecordingTime((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [isRecording]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : undefined;
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      mediaRecorderRef.current = recorder;
+
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        const ext = recorder.mimeType.includes("webm") ? "webm" : "mp4";
+        const file = new File([blob], `recording-${Date.now()}.${ext}`, {
+          type: blob.type,
+        });
+        upload(file);
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+      };
+      recorder.start();
+      setRecordingTime(0);
+      setIsRecording(true);
+    } catch {
+      alert("Microphone access denied. Please allow microphone permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const handleMicClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -367,8 +445,60 @@ export default function DocumentsPage() {
               variant="caption"
               sx={{ color: alpha("#ffffff", 0.3) }}
             >
-              PDF, DOCX, HTML, Markdown, or text
+              PDF, DOCX, HTML, Markdown, text, PNG, JPEG, or audio
             </Typography>
+            <Box
+              sx={{
+                mt: 1.5,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+              }}
+            >
+              <IconButton
+                onClick={handleMicClick}
+                sx={{
+                  bgcolor: isRecording
+                    ? alpha("#ef4444", 0.2)
+                    : alpha("#6366f1", 0.1),
+                  border: `1px solid ${isRecording ? alpha("#ef4444", 0.5) : alpha("#6366f1", 0.25)}`,
+                  color: isRecording ? "#ef4444" : alpha("#6366f1", 0.7),
+                  "&:hover": {
+                    bgcolor: isRecording
+                      ? alpha("#ef4444", 0.3)
+                      : alpha("#6366f1", 0.2),
+                  },
+                }}
+              >
+                {isRecording ? (
+                  <StopIcon fontSize="small" />
+                ) : (
+                  <MicIcon fontSize="small" />
+                )}
+              </IconButton>
+              {isRecording && (
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+                >
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      bgcolor: "#ef4444",
+                      animation: `${pulse} 1.2s ease-in-out infinite`,
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "#ef4444", fontFamily: "monospace" }}
+                  >
+                    {formatTime(recordingTime)}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
 
           {error && (

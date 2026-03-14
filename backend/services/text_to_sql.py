@@ -28,6 +28,10 @@ Notes:
   - Multiple rows per file (one per chunk). Use DISTINCT source_filename to count files.
   - metadata->>'topic' gets the topic string.
   - metadata->'keywords' gets the keywords JSON array.
+    To search keywords use: metadata->>'keywords' ILIKE '%term%'
+  - NEVER use ILIKE or text operators on jsonb columns.
+    Always use ->> to extract as text first.
+  - source_type can be: pdf, docx, html, markdown, text, image, audio
   - Always filter by user_id = '{user_id}' to scope to the current user."""
 
 SQL_GENERATION_PROMPT = """You are a SQL expert. Generate a PostgreSQL SELECT query to answer the \

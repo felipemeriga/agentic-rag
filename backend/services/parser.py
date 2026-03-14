@@ -1,9 +1,14 @@
 """Extract text from documents using Docling."""
 
+import base64
+import os
 import tempfile
 from pathlib import Path
 
+import anthropic
 from docling.document_converter import DocumentConverter
+from langsmith import traceable
+from langsmith.wrappers import wrap_anthropic
 
 
 def parse_document(file_bytes: bytes, filename: str) -> str:
@@ -24,3 +29,77 @@ def parse_document(file_bytes: bytes, filename: str) -> str:
         return result.document.export_to_markdown()
     finally:
         Path(tmp_path).unlink(missing_ok=True)
+
+
+IMAGE_EXTRACTION_PROMPT = (
+    "Analyze this image and extract all information from it.\n\n"
+    "Respond in Markdown with these sections:\n\n"
+    "## Text Content\n"
+    "Extract ALL visible text from the image exactly as written. "
+    'If no text is visible, write "No text content found."\n\n'
+    "## Visual Description\n"
+    "Describe what the image shows: diagrams, charts, photos, "
+    "layouts, colors, relationships between elements. "
+    "Be thorough and specific so someone who cannot see the image "
+    "can understand its full content."
+)
+
+
+@traceable(name="extract_from_image", run_type="chain")
+def extract_from_image(file_bytes: bytes, filename: str) -> str:
+    """Extract text and visual description from an image using Claude Vision."""
+    ext = filename.rsplit(".", 1)[-1].lower()
+    media_type = "image/png" if ext == "png" else "image/jpeg"
+    image_data = base64.standard_b64encode(file_bytes).decode("utf-8")
+
+    client = wrap_anthropic(anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]))
+
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=4096,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media_type,
+                            "data": image_data,
+                        },
+                    },
+                    {"type": "text", "text": IMAGE_EXTRACTION_PROMPT},
+                ],
+            }
+        ],
+    )
+
+    return response.content[0].text
+
+
+AUDIO_MIME_TYPES = {
+    "mp3": "audio/mpeg",
+    "webm": "audio/webm",
+    "m4a": "audio/mp4",
+}
+
+
+@traceable(name="transcribe_audio", run_type="chain")
+def transcribe_audio(file_bytes: bytes, filename: str) -> str:
+    """Transcribe audio to text using OpenAI Whisper API."""
+    import openai
+
+    ext = filename.rsplit(".", 1)[-1].lower()
+    mime_type = AUDIO_MIME_TYPES.get(ext, "audio/mpeg")
+
+    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    audio_file = (filename, file_bytes, mime_type)
+
+    transcription = client.audio.transcriptions.create(
+        model="whisper-1",
+        file=audio_file,
+        response_format="text",
+    )
+
+    return transcription
