@@ -242,6 +242,7 @@ async def delete_document(filename: str, user_id: str = Depends(get_current_user
     meta = (docs.data[0].get("metadata") or {}) if docs.data else {}
     image_url = meta.get("image_url")
     audio_url = meta.get("audio_url")
+    file_url = meta.get("file_url")
 
     # Delete document chunks
     sb.table("documents").delete().eq("source_filename", filename).eq("user_id", user_id).execute()
@@ -252,6 +253,8 @@ async def delete_document(filename: str, user_id: str = Depends(get_current_user
             sb.storage.from_("images").remove([image_url])
         if audio_url:
             sb.storage.from_("audio").remove([audio_url])
+        if file_url:
+            sb.storage.from_("documents").remove([file_url])
     except Exception:
         pass  # Non-critical: storage cleanup is best-effort
 
