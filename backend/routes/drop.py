@@ -34,28 +34,43 @@ def _resolve_user_id(email: str) -> str:
     raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
 
 
-def _find_or_create_folder(folder_name: str, user_id: str) -> str:
+def _find_or_create_folder(folder_path: str, user_id: str) -> str:
+    """Resolve a folder path like 'Bank/Claro/2026', creating each level as needed."""
     sb = get_supabase()
-    # Case-insensitive match at root level
-    result = (
-        sb.table("folders")
-        .select("id, name")
-        .eq("user_id", user_id)
-        .is_("parent_id", "null")
-        .ilike("name", folder_name)
-        .limit(1)
-        .execute()
-    )
-    if result.data:
-        return result.data[0]["id"]
+    parts = [p.strip() for p in folder_path.split("/") if p.strip()]
+    if not parts:
+        raise HTTPException(status_code=400, detail="Empty folder name")
 
-    # Create new folder
-    result = (
-        sb.table("folders")
-        .insert({"name": folder_name.strip(), "user_id": user_id})
-        .execute()
-    )
-    return result.data[0]["id"]
+    parent_id: str | None = None
+    folder_id: str | None = None
+
+    for part in parts:
+        query = (
+            sb.table("folders")
+            .select("id")
+            .eq("user_id", user_id)
+            .ilike("name", part)
+            .limit(1)
+        )
+        if parent_id:
+            query = query.eq("parent_id", parent_id)
+        else:
+            query = query.is_("parent_id", "null")
+
+        result = query.execute()
+
+        if result.data:
+            folder_id = result.data[0]["id"]
+        else:
+            row = {"name": part, "user_id": user_id}
+            if parent_id:
+                row["parent_id"] = parent_id
+            result = sb.table("folders").insert(row).execute()
+            folder_id = result.data[0]["id"]
+
+        parent_id = folder_id
+
+    return folder_id
 
 
 @router.post("/drop")
