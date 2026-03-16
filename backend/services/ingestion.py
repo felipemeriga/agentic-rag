@@ -74,6 +74,31 @@ def upload_audio_to_storage(
     return storage_path
 
 
+DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm", ".md", ".markdown", ".txt", ".text"}
+
+
+def upload_document_to_storage(
+    file_bytes: bytes, user_id: str, content_hash: str, filename: str
+) -> str:
+    """Upload raw document to Supabase Storage and return the path."""
+    ext = Path(filename).suffix.lower().lstrip(".")
+    storage_path = f"{user_id}/{content_hash}.{ext}"
+    sb = get_supabase()
+    mime_types = {
+        "pdf": "application/pdf",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "html": "text/html",
+        "htm": "text/html",
+        "md": "text/markdown",
+        "markdown": "text/markdown",
+        "txt": "text/plain",
+        "text": "text/plain",
+    }
+    media_type = mime_types.get(ext, "application/octet-stream")
+    sb.storage.from_("documents").upload(storage_path, file_bytes, {"content-type": media_type})
+    return storage_path
+
+
 def ingest_document(
     file_bytes: bytes,
     filename: str,
@@ -89,6 +114,7 @@ def ingest_document(
     ext = Path(filename).suffix.lower()
     is_image = ext in IMAGE_EXTENSIONS
     is_audio = ext in AUDIO_EXTENSIONS
+    is_document = ext in DOCUMENT_EXTENSIONS
     media_storage_path: str | None = None
     media_type: str | None = None  # "image" or "audio"
 
@@ -99,6 +125,9 @@ def ingest_document(
     elif is_audio:
         media_storage_path = upload_audio_to_storage(file_bytes, user_id, content_hash, filename)
         media_type = "audio"
+    elif is_document:
+        media_storage_path = upload_document_to_storage(file_bytes, user_id, content_hash, filename)
+        media_type = "document"
 
     # Parse: image via Claude Vision, audio via Whisper, documents via Docling
     if is_image:
@@ -134,6 +163,8 @@ def ingest_document(
             metadata["image_url"] = media_storage_path
         elif media_storage_path and media_type == "audio":
             metadata["audio_url"] = media_storage_path
+        elif media_storage_path and media_type == "document":
+            metadata["file_url"] = media_storage_path
 
         row = {
             "content": chunk,
