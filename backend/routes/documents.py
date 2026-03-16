@@ -31,6 +31,8 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 AUDIO_EXTENSIONS = {".mp3", ".webm", ".m4a"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25MB
+DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm", ".md", ".markdown", ".txt", ".text"}
+MAX_DOCUMENT_SIZE = 50 * 1024 * 1024  # 50MB
 
 
 @router.post("/upload")
@@ -65,6 +67,12 @@ async def upload_document(
         raise HTTPException(
             status_code=400,
             detail=f"Audio too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 25MB.",
+        )
+
+    if ext in DOCUMENT_EXTENSIONS and len(file_bytes) > MAX_DOCUMENT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 50MB.",
         )
 
     result = ingest_document(
