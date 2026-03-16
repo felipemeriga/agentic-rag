@@ -132,6 +132,8 @@ export async function streamChat(
 
 export interface DocumentInfo {
   source_filename: string;
+  source_type: string;
+  has_file: boolean;
   chunks: number;
   status: "processing" | "completed" | "failed";
   created_at: string;
@@ -190,6 +192,14 @@ export async function deleteDocument(filename: string): Promise<void> {
   await apiFetch(`/api/documents/${encodeURIComponent(filename)}`, {
     method: "DELETE",
   });
+}
+
+export async function downloadDocument(filename: string): Promise<string> {
+  const res = await apiFetch(
+    `/api/documents/${encodeURIComponent(filename)}/download`
+  );
+  const data = await res.json();
+  return data.url;
 }
 
 // --- Folders ---
