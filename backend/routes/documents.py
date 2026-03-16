@@ -96,7 +96,7 @@ async def list_documents(
     sb = get_supabase()
     query = (
         sb.table("documents")
-        .select("id, source_filename, metadata, status, created_at, folder_id")
+        .select("id, source_filename, source_type, metadata, status, created_at, folder_id")
         .eq("user_id", user_id)
     )
 
@@ -112,8 +112,12 @@ async def list_documents(
     for doc in result.data:
         fname = doc.get("source_filename") or "unknown"
         if fname not in files:
+            meta = doc.get("metadata") or {}
+            has_file = bool(meta.get("file_url") or meta.get("image_url") or meta.get("audio_url"))
             files[fname] = {
                 "source_filename": fname,
+                "source_type": doc.get("source_type", "text"),
+                "has_file": has_file,
                 "chunks": 0,
                 "status": doc.get("status", "completed"),
                 "created_at": doc["created_at"],
