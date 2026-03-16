@@ -133,6 +133,40 @@ async def list_documents(
     return list(files.values())
 
 
+@router.get("/{filename}/download")
+async def download_document(filename: str, user_id: str = Depends(get_current_user)):
+    """Generate a signed download URL for the original uploaded file."""
+    sb = get_supabase()
+
+    docs = (
+        sb.table("documents")
+        .select("metadata, source_type")
+        .eq("source_filename", filename)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not docs.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    meta = docs.data[0].get("metadata") or {}
+    source_type = docs.data[0].get("source_type", "")
+
+    file_url = meta.get("file_url") or meta.get("image_url") or meta.get("audio_url")
+    if not file_url:
+        raise HTTPException(status_code=404, detail="Original file not available")
+
+    if meta.get("image_url"):
+        bucket = "images"
+    elif meta.get("audio_url"):
+        bucket = "audio"
+    else:
+        bucket = "documents"
+
+    signed = sb.storage.from_(bucket).create_signed_url(file_url, 300)
+    return {"url": signed["signedURL"]}
+
+
 @router.get("/filters")
 async def get_filters(user_id: str = Depends(get_current_user)):
     """Return available topics and keywords for the user's documents."""
