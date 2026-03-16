@@ -26,6 +26,7 @@ import {
 import { keyframes } from "@mui/system";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
@@ -41,7 +42,7 @@ import StopIcon from "@mui/icons-material/Stop";
 import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
 import type { UploadTask } from "../hooks/useDocuments";
-import { createFolder, fetchFolders, deleteFolder } from "../lib/api";
+import { createFolder, fetchFolders, deleteFolder, downloadDocument } from "../lib/api";
 import FolderTree from "../components/FolderTree";
 
 const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.png,.jpg,.jpeg,.mp3,.webm,.m4a";
@@ -276,6 +277,15 @@ export default function DocumentsPage() {
       await remove(deleteConfirm.name);
     }
     setDeleteConfirm(null);
+  };
+
+  const handleDownload = async (filename: string) => {
+    try {
+      const url = await downloadDocument(filename);
+      window.open(url, "_blank");
+    } catch {
+      // Silently fail — button is only shown when has_file is true
+    }
   };
 
   const isEmpty =
@@ -673,22 +683,39 @@ export default function DocumentsPage() {
                       transition: "all 0.15s ease",
                     }}
                     secondaryAction={
-                      <IconButton
-                        edge="end"
-                        onClick={() =>
-                          setDeleteConfirm({
-                            type: "document",
-                            id: doc.source_filename,
-                            name: doc.source_filename,
-                          })
-                        }
-                        sx={{
-                          opacity: 0.4,
-                          "&:hover": { opacity: 1 },
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        {doc.has_file && (
+                          <Tooltip title="Download original file">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDownload(doc.source_filename)}
+                              sx={{
+                                opacity: 0.4,
+                                "&:hover": { opacity: 1 },
+                              }}
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <IconButton
+                          edge="end"
+                          size="small"
+                          onClick={() =>
+                            setDeleteConfirm({
+                              type: "document",
+                              id: doc.source_filename,
+                              name: doc.source_filename,
+                            })
+                          }
+                          sx={{
+                            opacity: 0.4,
+                            "&:hover": { opacity: 1 },
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
                     }
                   >
                     <ListItemIcon sx={{ minWidth: 48, gap: 0.5 }}>
