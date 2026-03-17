@@ -261,31 +261,97 @@ export async function fetchBreadcrumbs(
 // --- API Keys ---
 
 export interface ApiKeyInfo {
+  id: string;
   name: string;
+  scope_folder_id: string;
+  scope_folder_name: string;
   created_at: string;
 }
 
 export interface CreatedApiKey {
   key: string;
+  id: string;
   name: string;
+  scope_folder_id: string;
+  scope_folder_name: string;
   created_at: string;
 }
 
-export async function fetchApiKey(): Promise<ApiKeyInfo | null> {
+export async function fetchApiKeys(): Promise<ApiKeyInfo[]> {
   const res = await apiFetch("/api/api-keys");
   return res.json();
 }
 
 export async function createApiKey(
-  name: string = "Default"
+  name: string,
+  scopeFolderId: string
 ): Promise<CreatedApiKey> {
   const res = await apiFetch("/api/api-keys", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, scope_folder_id: scopeFolderId }),
   });
   return res.json();
 }
 
-export async function revokeApiKey(): Promise<void> {
-  await apiFetch("/api/api-keys", { method: "DELETE" });
+export async function revokeApiKey(keyId: string): Promise<void> {
+  await apiFetch(`/api/api-keys/${keyId}`, { method: "DELETE" });
+}
+
+// --- Notes ---
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  root_folder_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchNotes(
+  rootFolderId?: string | null
+): Promise<Note[]> {
+  const params = rootFolderId ? `?root_folder_id=${rootFolderId}` : "";
+  const res = await apiFetch(`/api/notes${params}`);
+  return res.json();
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+  await apiFetch(`/api/notes/${noteId}`, { method: "DELETE" });
+}
+
+// --- Context ---
+
+export interface ContextEntry {
+  id: string;
+  key: string;
+  value: string;
+  root_folder_id: string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchContext(
+  rootFolderId?: string | null
+): Promise<ContextEntry[]> {
+  const params = rootFolderId ? `?root_folder_id=${rootFolderId}` : "";
+  const res = await apiFetch(`/api/context${params}`);
+  return res.json();
+}
+
+export async function deleteContextEntry(contextId: string): Promise<void> {
+  await apiFetch(`/api/context/${contextId}`, { method: "DELETE" });
+}
+
+export async function clearAllContext(rootFolderId: string): Promise<void> {
+  await apiFetch(`/api/context/clear?root_folder_id=${rootFolderId}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Scopes (root folders) ---
+
+export async function fetchRootFolders(): Promise<Folder[]> {
+  return fetchFolders(null);
 }
