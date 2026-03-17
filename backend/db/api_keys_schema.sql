@@ -3,10 +3,12 @@
 
 create table api_keys (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade unique,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  scope_folder_id uuid not null references folders(id) on delete cascade,
   key_hash text not null,
   name text not null default 'Default',
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  unique (user_id, scope_folder_id)
 );
 
 alter table api_keys enable row level security;

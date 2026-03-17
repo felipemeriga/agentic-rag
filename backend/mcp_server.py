@@ -4,7 +4,7 @@ import contextvars
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
@@ -85,7 +85,9 @@ def query_documents_metadata(question: str) -> str:
     if not _current_user_id.get():
         return "Error: Not authenticated. Provide a valid API key."
 
-    result = generate_and_execute_sql(question, _current_user_id.get())
+    result = generate_and_execute_sql(
+        question, _current_user_id.get(), _current_scope_folder_id.get()
+    )
     if result["error"]:
         return f"Query failed: {result['error']}"
     if not result["results"]:
@@ -156,7 +158,14 @@ def list_notes(query: str = "") -> str:
         .eq("root_folder_id", _current_scope_folder_id.get())
     )
     if query:
-        q = q.or_(f"title.ilike.%{query}%,content.ilike.%{query}%")
+        safe_query = (
+            query.replace("%", "")
+            .replace(".", "")
+            .replace(",", "")
+            .replace("(", "")
+            .replace(")", "")
+        )
+        q = q.or_(f"title.ilike.%{safe_query}%,content.ilike.%{safe_query}%")
     result = q.order("created_at", desc=True).execute()
     notes = result.data
 
@@ -211,17 +220,15 @@ def set_context(key: str, value: str) -> str:
     user_id = _current_user_id.get()
     scope_id = _current_scope_folder_id.get()
 
-    sb.table("context").delete().eq("user_id", user_id).eq("root_folder_id", scope_id).eq(
-        "key", key
-    ).execute()
-
-    sb.table("context").insert(
+    sb.table("context").upsert(
         {
             "key": key,
             "value": value,
             "root_folder_id": scope_id,
             "user_id": user_id,
-        }
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+        },
+        on_conflict="user_id,root_folder_id,key",
     ).execute()
 
     return f"Context set: {key}"
