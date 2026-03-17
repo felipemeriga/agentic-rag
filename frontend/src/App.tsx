@@ -5,6 +5,8 @@ import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import SettingsPage from "./pages/SettingsPage";
+import NotesPage from "./pages/NotesPage";
+import ContextPage from "./pages/ContextPage";
 
 function App() {
   return (
@@ -33,6 +35,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notes"
+            element={
+              <ProtectedRoute>
+                <NotesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/context"
+            element={
+              <ProtectedRoute>
+                <ContextPage />
               </ProtectedRoute>
             }
           />
