@@ -15,6 +15,10 @@ import {
   alpha,
   Tooltip,
   Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyIcon from "@mui/icons-material/Key";
@@ -22,45 +26,58 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
 import {
-  fetchApiKey,
+  fetchApiKeys,
   createApiKey,
   revokeApiKey,
+  fetchRootFolders,
   type ApiKeyInfo,
+  type Folder,
 } from "../lib/api";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const [keyInfo, setKeyInfo] = useState<ApiKeyInfo | null>(null);
+  const [keys, setKeys] = useState<ApiKeyInfo[]>([]);
+  const [scopes, setScopes] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedScope, setSelectedScope] = useState<string>("");
+  const [keyName, setKeyName] = useState("Default");
 
-  const loadKey = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
       setError(null);
-      const data = await fetchApiKey();
-      setKeyInfo(data);
+      const [keysData, scopesData] = await Promise.all([
+        fetchApiKeys(),
+        fetchRootFolders(),
+      ]);
+      setKeys(keysData);
+      setScopes(scopesData);
     } catch {
-      setError("Failed to load API key. Please try again.");
+      setError("Failed to load data.");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadKey();
-  }, [loadKey]);
+    loadData();
+  }, [loadData]);
 
   const handleGenerate = async () => {
+    if (!selectedScope) {
+      setError("Please select a scope.");
+      return;
+    }
     try {
       setError(null);
-      const result = await createApiKey("Default");
+      const result = await createApiKey(keyName || "Default", selectedScope);
       setNewKey(result.key);
-      setKeyInfo({ name: result.name, created_at: result.created_at });
+      await loadData();
     } catch {
-      setError("Failed to generate API key. Please try again.");
+      setError("Failed to generate API key.");
     }
   };
 
@@ -73,15 +90,16 @@ export default function SettingsPage() {
   };
 
   const handleRevoke = async () => {
+    if (!revokeTarget) return;
     try {
       setError(null);
-      await revokeApiKey();
-      setKeyInfo(null);
+      await revokeApiKey(revokeTarget);
+      setKeys((prev) => prev.filter((k) => k.id !== revokeTarget));
       setNewKey(null);
-      setRevokeOpen(false);
+      setRevokeTarget(null);
     } catch {
-      setError("Failed to revoke API key. Please try again.");
-      setRevokeOpen(false);
+      setError("Failed to revoke API key.");
+      setRevokeTarget(null);
     }
   };
 
@@ -94,7 +112,6 @@ export default function SettingsPage() {
         flexDirection: "column",
       }}
     >
-      {/* Header */}
       <Box
         sx={{
           p: 2,
@@ -113,69 +130,24 @@ export default function SettingsPage() {
         </Typography>
       </Box>
 
-      {/* Content */}
       <Box sx={{ p: 3, maxWidth: 600, mx: "auto", width: "100%" }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-          MCP API Key
+          MCP API Keys
         </Typography>
         <Typography
           variant="body2"
           sx={{ mb: 3, color: alpha("#ffffff", 0.6) }}
         >
-          Generate an API key to connect MCP clients like Claude Code or Cursor
-          to your knowledge base. Only one key is active at a time — generating a
-          new one replaces the old one.
+          Generate API keys scoped to root folders. Each scope (e.g., Work,
+          Personal) gets its own key for isolated MCP access.
         </Typography>
 
-        {/* Error alert */}
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
-        {/* Existing key info */}
-        {keyInfo && !newKey && (
-          <Paper
-            sx={{
-              p: 2,
-              mb: 2,
-              bgcolor: alpha("#ffffff", 0.03),
-              border: 1,
-              borderColor: alpha("#ffffff", 0.08),
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <KeyIcon sx={{ fontSize: 18, color: "#6366f1" }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {keyInfo.name}
-                </Typography>
-                <Chip
-                  label="Active"
-                  size="small"
-                  color="success"
-                  sx={{ height: 20, fontSize: "0.7rem" }}
-                />
-              </Box>
-              <Typography
-                variant="caption"
-                sx={{ color: alpha("#ffffff", 0.4) }}
-              >
-                Created{" "}
-                {new Date(keyInfo.created_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-          </Paper>
-        )}
-
-        {/* Newly generated key */}
         {newKey && (
           <Alert
             severity="warning"
@@ -207,33 +179,95 @@ export default function SettingsPage() {
           </Alert>
         )}
 
-        {/* Actions */}
-        <Box sx={{ display: "flex", gap: 1 }}>
+        {keys.map((k) => (
+          <Paper
+            key={k.id}
+            sx={{
+              p: 2,
+              mb: 1,
+              bgcolor: alpha("#ffffff", 0.03),
+              border: 1,
+              borderColor: alpha("#ffffff", 0.08),
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <KeyIcon sx={{ fontSize: 18, color: "#6366f1" }} />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {k.name}
+                </Typography>
+                <Chip
+                  label={k.scope_folder_name}
+                  size="small"
+                  color="primary"
+                  sx={{ height: 20, fontSize: "0.7rem" }}
+                />
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: alpha("#ffffff", 0.4) }}
+                >
+                  {new Date(k.created_at).toLocaleDateString()}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => setRevokeTarget(k.id)}
+                  sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+          </Paper>
+        ))}
+
+        <Box sx={{ display: "flex", gap: 1, mt: 2, alignItems: "flex-end" }}>
+          <TextField
+            label="Key name"
+            size="small"
+            value={keyName}
+            onChange={(e) => setKeyName(e.target.value)}
+            sx={{ flex: 1 }}
+          />
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Scope</InputLabel>
+            <Select
+              value={selectedScope}
+              label="Scope"
+              onChange={(e) => setSelectedScope(e.target.value)}
+            >
+              {scopes.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <Button
             variant="contained"
             startIcon={<KeyIcon />}
             onClick={handleGenerate}
-            disabled={loading}
+            disabled={loading || !selectedScope}
           >
-            {keyInfo ? "Regenerate Key" : "Generate API Key"}
+            Generate
           </Button>
-          {keyInfo && (
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={() => setRevokeOpen(true)}
-            >
-              Revoke
-            </Button>
-          )}
         </Box>
 
-        {/* MCP connection instructions */}
-        <Typography
-          variant="h6"
-          sx={{ mt: 4, mb: 2, fontWeight: 600 }}
-        >
+        {scopes.length === 0 && !loading && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Create a root folder in Documents first — root folders serve as
+            scopes for API keys.
+          </Alert>
+        )}
+
+        <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 600 }}>
           Connect MCP Client
         </Typography>
         <Typography
@@ -268,17 +302,15 @@ export default function SettingsPage() {
 }`}
         </Paper>
 
-        {/* Revoke confirmation dialog */}
-        <Dialog open={revokeOpen} onClose={() => setRevokeOpen(false)}>
+        <Dialog open={!!revokeTarget} onClose={() => setRevokeTarget(null)}>
           <DialogTitle>Revoke API Key</DialogTitle>
           <DialogContent>
             <DialogContentText>
               This will immediately disconnect any MCP clients using this key.
-              You can generate a new key afterward.
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setRevokeOpen(false)}>Cancel</Button>
+            <Button onClick={() => setRevokeTarget(null)}>Cancel</Button>
             <Button onClick={handleRevoke} color="error" variant="contained">
               Revoke
             </Button>
