@@ -8,6 +8,7 @@ from services.chunker import chunk_text
 from services.embeddings import embed_document
 from services.metadata import extract_metadata
 from services.parser import extract_from_image, parse_document, transcribe_audio
+from services.scope import resolve_root_folder_id
 
 EXTENSION_TO_TYPE = {
     ".pdf": "pdf",
@@ -106,6 +107,11 @@ def ingest_document(
     folder_id: str | None = None,
 ) -> dict:
     """Ingest a document or image: parse, hash, deduplicate, chunk, embed, store."""
+    # Resolve root folder for scope filtering
+    root_folder_id = None
+    if folder_id:
+        root_folder_id = resolve_root_folder_id(folder_id, user_id)
+
     content_hash = compute_content_hash(file_bytes)
 
     if check_duplicate(content_hash, user_id):
@@ -178,6 +184,8 @@ def ingest_document(
         }
         if folder_id:
             row["folder_id"] = folder_id
+        if root_folder_id:
+            row["root_folder_id"] = root_folder_id
 
         result = sb.table("documents").insert(row).execute()
         inserted_ids.append(result.data[0]["id"])
