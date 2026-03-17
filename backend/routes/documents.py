@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from auth import get_current_user
 from db.client import get_supabase
 from services.ingestion import ingest_document
+from services.scope import resolve_root_folder_id
 
 router = APIRouter(prefix="/api/documents")
 
@@ -219,9 +220,14 @@ async def move_document(
         if not folder.data:
             raise HTTPException(status_code=404, detail="Target folder not found")
 
-    sb.table("documents").update({"folder_id": body.folder_id}).eq("source_filename", filename).eq(
-        "user_id", user_id
-    ).execute()
+    root_folder_id = None
+    if body.folder_id:
+        root_folder_id = resolve_root_folder_id(body.folder_id, user_id)
+
+    update_data = {"folder_id": body.folder_id, "root_folder_id": root_folder_id}
+    sb.table("documents").update(update_data).eq(
+        "source_filename", filename
+    ).eq("user_id", user_id).execute()
     return {"ok": True}
 
 
