@@ -12,6 +12,7 @@ def _vector_search(
     top_k: int,
     topic: str | None,
     keyword: str | None,
+    root_folder_id: str | None = None,
 ) -> list[dict]:
     """Search documents by cosine similarity."""
     sb = get_supabase()
@@ -22,6 +23,8 @@ def _vector_search(
         params["filter_topic"] = topic
     if keyword:
         params["filter_keyword"] = keyword
+    if root_folder_id:
+        params["filter_root_folder_id"] = root_folder_id
 
     result = sb.rpc("match_documents", params).execute()
     return result.data
@@ -33,6 +36,7 @@ def _keyword_search(
     top_k: int,
     topic: str | None,
     keyword: str | None,
+    root_folder_id: str | None = None,
 ) -> list[dict]:
     """Search documents by full-text keyword matching."""
     sb = get_supabase()
@@ -43,6 +47,8 @@ def _keyword_search(
         params["filter_topic"] = topic
     if keyword:
         params["filter_keyword"] = keyword
+    if root_folder_id:
+        params["filter_root_folder_id"] = root_folder_id
 
     result = sb.rpc("keyword_search", params).execute()
     return result.data
@@ -82,6 +88,7 @@ def search_documents(
     top_k: int = 5,
     topic: str | None = None,
     keyword: str | None = None,
+    root_folder_id: str | None = None,
 ) -> list[dict]:
     """Hybrid search: vector + keyword → RRF fusion → Voyage reranking.
 
@@ -90,11 +97,15 @@ def search_documents(
     """
     fetch_k = 20
 
-    vector_results = _vector_search(query_embedding, user_id, fetch_k, topic, keyword)
+    vector_results = _vector_search(
+        query_embedding, user_id, fetch_k, topic, keyword, root_folder_id=root_folder_id
+    )
 
     keyword_results = []
     if query_text:
-        keyword_results = _keyword_search(query_text, user_id, fetch_k, topic, keyword)
+        keyword_results = _keyword_search(
+            query_text, user_id, fetch_k, topic, keyword, root_folder_id=root_folder_id
+        )
 
     if not vector_results and not keyword_results:
         return []
