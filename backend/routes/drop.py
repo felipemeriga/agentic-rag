@@ -2,13 +2,14 @@
 
 import hashlib
 
-from fastapi import APIRouter, Header, HTTPException, UploadFile, Form
+from fastapi import APIRouter, Form, Header, HTTPException, UploadFile
+
 from db.client import get_supabase
 from services.ingestion import (
-    EXTENSION_TO_TYPE,
-    IMAGE_EXTENSIONS,
     AUDIO_EXTENSIONS,
     DOCUMENT_EXTENSIONS,
+    EXTENSION_TO_TYPE,
+    IMAGE_EXTENSIONS,
     ingest_document,
 )
 
@@ -19,47 +20,46 @@ MAX_AUDIO_SIZE = 25 * 1024 * 1024
 MAX_DOCUMENT_SIZE = 50 * 1024 * 1024
 
 
-def _resolve_user_from_api_key(api_key: str) -> str:
-    """Verify API key against api_keys table and return the user_id."""
+def _resolve_user_from_api_key(api_key: str) -> tuple[str, str]:
+    """Verify API key against api_keys table and return (user_id, scope_folder_id)."""
     key_hash = hashlib.sha256(api_key.encode()).hexdigest()
     sb = get_supabase()
-    result = sb.table("api_keys").select("user_id").eq("key_hash", key_hash).execute()
+    result = (
+        sb.table("api_keys").select("user_id, scope_folder_id").eq("key_hash", key_hash).execute()
+    )
     if not result.data:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    return result.data[0]["user_id"]
+    row = result.data[0]
+    if not row.get("scope_folder_id"):
+        raise HTTPException(status_code=400, detail="API key must be scoped to a folder")
+    return row["user_id"], row["scope_folder_id"]
 
 
-def _find_or_create_folder(folder_path: str, user_id: str) -> str:
-    """Resolve a folder path like 'Bank/Claro/2026', creating each level as needed."""
+def _find_or_create_folder(folder_path: str, user_id: str, scope_folder_id: str) -> str:
+    """Resolve a folder path within a scope, creating each level as needed."""
     sb = get_supabase()
     parts = [p.strip() for p in folder_path.split("/") if p.strip()]
     if not parts:
         raise HTTPException(status_code=400, detail="Empty folder name")
 
-    parent_id: str | None = None
-    folder_id: str | None = None
+    parent_id: str = scope_folder_id
+    folder_id: str = scope_folder_id
 
     for part in parts:
         query = (
             sb.table("folders")
             .select("id")
             .eq("user_id", user_id)
+            .eq("parent_id", parent_id)
             .ilike("name", part)
             .limit(1)
         )
-        if parent_id:
-            query = query.eq("parent_id", parent_id)
-        else:
-            query = query.is_("parent_id", "null")
-
         result = query.execute()
 
         if result.data:
             folder_id = result.data[0]["id"]
         else:
-            row = {"name": part, "user_id": user_id}
-            if parent_id:
-                row["parent_id"] = parent_id
+            row = {"name": part, "user_id": user_id, "parent_id": parent_id}
             result = sb.table("folders").insert(row).execute()
             folder_id = result.data[0]["id"]
 
@@ -78,7 +78,7 @@ async def drop_document(
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     api_key = authorization.split(" ", 1)[1]
-    user_id = _resolve_user_from_api_key(api_key)
+    user_id, scope_folder_id = _resolve_user_from_api_key(api_key)
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -102,10 +102,10 @@ async def drop_document(
     if ext in DOCUMENT_EXTENSIONS and len(file_bytes) > MAX_DOCUMENT_SIZE:
         raise HTTPException(status_code=400, detail="Document too large. Maximum 50MB.")
 
-    # Resolve folder
-    folder_id = None
+    # Resolve folder within scope
+    folder_id = scope_folder_id  # Default to scope root
     if folder_name and folder_name.strip():
-        folder_id = _find_or_create_folder(folder_name.strip(), user_id)
+        folder_id = _find_or_create_folder(folder_name.strip(), user_id, scope_folder_id)
 
     result = ingest_document(
         file_bytes=file_bytes,
