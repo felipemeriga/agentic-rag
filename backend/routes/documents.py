@@ -73,7 +73,7 @@ async def upload_document(
     if ext in DOCUMENT_EXTENSIONS and len(file_bytes) > MAX_DOCUMENT_SIZE:
         raise HTTPException(
             status_code=400,
-            detail=f"Document too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 50MB.",
+            detail=f"Document too large ({len(file_bytes) // 1024 // 1024}MB). Max is 50MB.",
         )
 
     result = ingest_document(
@@ -151,8 +151,6 @@ async def download_document(filename: str, user_id: str = Depends(get_current_us
         raise HTTPException(status_code=404, detail="Document not found")
 
     meta = docs.data[0].get("metadata") or {}
-    source_type = docs.data[0].get("source_type", "")
-
     file_url = meta.get("file_url") or meta.get("image_url") or meta.get("audio_url")
     if not file_url:
         raise HTTPException(status_code=404, detail="Original file not available")
@@ -225,9 +223,9 @@ async def move_document(
         root_folder_id = resolve_root_folder_id(body.folder_id, user_id)
 
     update_data = {"folder_id": body.folder_id, "root_folder_id": root_folder_id}
-    sb.table("documents").update(update_data).eq(
-        "source_filename", filename
-    ).eq("user_id", user_id).execute()
+    sb.table("documents").update(update_data).eq("source_filename", filename).eq(
+        "user_id", user_id
+    ).execute()
     return {"ok": True}
 
 
