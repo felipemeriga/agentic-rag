@@ -12,7 +12,6 @@ services:
       - SUPABASE_URL
       - SUPABASE_SERVICE_KEY
       - SUPABASE_JWT_SECRET
-      - DROP_API_KEY
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]

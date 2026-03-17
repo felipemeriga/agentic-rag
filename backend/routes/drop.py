@@ -1,6 +1,6 @@
 """External drop endpoint for programmatic file ingestion."""
 
-import os
+import hashlib
 
 from fastapi import APIRouter, Header, HTTPException, UploadFile, Form
 from db.client import get_supabase
@@ -19,19 +19,14 @@ MAX_AUDIO_SIZE = 25 * 1024 * 1024
 MAX_DOCUMENT_SIZE = 50 * 1024 * 1024
 
 
-def _verify_api_key(api_key: str) -> None:
-    expected = os.environ.get("DROP_API_KEY")
-    if not expected or api_key != expected:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-
-def _resolve_user_id(email: str) -> str:
+def _resolve_user_from_api_key(api_key: str) -> str:
+    """Verify API key against api_keys table and return the user_id."""
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
     sb = get_supabase()
-    users = sb.auth.admin.list_users()
-    for user in users:
-        if user.email == email:
-            return user.id
-    raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
+    result = sb.table("api_keys").select("user_id").eq("key_hash", key_hash).execute()
+    if not result.data:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return result.data[0]["user_id"]
 
 
 def _find_or_create_folder(folder_path: str, user_id: str) -> str:
@@ -77,12 +72,13 @@ def _find_or_create_folder(folder_path: str, user_id: str) -> str:
 async def drop_document(
     file: UploadFile,
     folder_name: str = Form(default=None),
-    x_api_key: str = Header(),
-    x_user_email: str = Header(),
+    authorization: str = Header(),
 ):
     """Accept a file from an external app, ingest it into the RAG pipeline."""
-    _verify_api_key(x_api_key)
-    user_id = _resolve_user_id(x_user_email)
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    api_key = authorization.split(" ", 1)[1]
+    user_id = _resolve_user_from_api_key(api_key)
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
