@@ -31,8 +31,10 @@ Notes:
     To search keywords use: metadata->>'keywords' ILIKE '%term%'
   - NEVER use ILIKE or text operators on jsonb columns.
     Always use ->> to extract as text first.
-  - source_type can be: pdf, docx, html, markdown, text, image, audio
-  - Always filter by user_id = '{user_id}' to scope to the current user."""
+  - source_type can be: pdf, docx, html, markdown, text, json, yaml, image, audio
+  - root_folder_id: uuid (scope — root folder this document belongs to)
+  - Always filter by user_id = '{user_id}' to scope to the current user.
+  - If root_folder_id filter is provided, also add: AND root_folder_id = '{root_folder_id}'"""
 
 SQL_GENERATION_PROMPT = """You are a SQL expert. Generate a PostgreSQL SELECT query to answer the \
 user's question.
@@ -42,6 +44,7 @@ user's question.
 Rules:
 - ONLY generate SELECT statements. Never INSERT, UPDATE, DELETE, DROP, or any DDL.
 - Always include WHERE user_id = '{user_id}' to scope results to the current user.
+- If a root_folder_id is provided, also filter: AND root_folder_id = '{root_folder_id}'.
 - Return ONLY the SQL query, no explanation, no markdown fences.
 - Keep queries simple and efficient.
 
@@ -61,7 +64,9 @@ def _validate_sql(sql: str) -> bool:
 
 
 @traceable(name="generate_and_execute_sql", run_type="chain")
-def generate_and_execute_sql(question: str, user_id: str) -> dict:
+def generate_and_execute_sql(
+    question: str, user_id: str, root_folder_id: str | None = None
+) -> dict:
     """Generate SQL from natural language and execute it.
 
     Returns dict with keys: sql (the generated query), results (list of rows),
@@ -69,9 +74,11 @@ def generate_and_execute_sql(question: str, user_id: str) -> dict:
     """
     client = wrap_anthropic(anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]))
 
+    schema = DOCUMENTS_SCHEMA.format(user_id=user_id, root_folder_id=root_folder_id or "N/A")
     prompt = SQL_GENERATION_PROMPT.format(
-        schema=DOCUMENTS_SCHEMA.format(user_id=user_id),
+        schema=schema,
         user_id=user_id,
+        root_folder_id=root_folder_id or "",
         question=question,
     )
 

@@ -53,9 +53,12 @@ create table documents (
   source_type text,
   content_hash text,
   folder_id uuid references folders(id) on delete set null,
+  root_folder_id uuid references folders(id) on delete set null,
   status text not null default 'completed' check (status in ('processing', 'completed', 'failed')),
   created_at timestamptz default now()
 );
+
+create index idx_documents_root_folder_id on documents(root_folder_id);
 
 create index on documents using hnsw (embedding vector_cosine_ops);
 
@@ -89,7 +92,8 @@ create or replace function match_documents(
   match_count int default 5,
   filter_user_id uuid default null,
   filter_topic text default null,
-  filter_keyword text default null
+  filter_keyword text default null,
+  filter_root_folder_id uuid default null
 )
 returns table (
   id uuid,
@@ -108,6 +112,7 @@ as $$
   where (user_id = filter_user_id or user_id is null)
     and (filter_topic is null or metadata->>'topic' = filter_topic)
     and (filter_keyword is null or metadata->'keywords' ? filter_keyword)
+    and (filter_root_folder_id is null or root_folder_id = filter_root_folder_id)
   order by embedding <=> query_embedding
   limit match_count;
 $$;
@@ -118,7 +123,8 @@ create or replace function keyword_search(
   match_count int default 20,
   filter_user_id uuid default null,
   filter_topic text default null,
-  filter_keyword text default null
+  filter_keyword text default null,
+  filter_root_folder_id uuid default null
 )
 returns table (
   id uuid,
@@ -138,6 +144,7 @@ as $$
     and (user_id = filter_user_id or user_id is null)
     and (filter_topic is null or metadata->>'topic' = filter_topic)
     and (filter_keyword is null or metadata->'keywords' ? filter_keyword)
+    and (filter_root_folder_id is null or root_folder_id = filter_root_folder_id)
   order by rank desc
   limit match_count;
 $$;
@@ -165,3 +172,55 @@ begin
   return coalesce(result, '[]'::jsonb);
 end;
 $$;
+
+-- Notes table (structured observations from Claude sessions)
+create table notes (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  content text not null,
+  content_hash text not null,
+  root_folder_id uuid references folders(id) on delete set null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table notes enable row level security;
+
+create policy "Users manage own notes"
+  on notes for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create index idx_notes_user_scope on notes(user_id, root_folder_id);
+create unique index idx_notes_dedup on notes(user_id, root_folder_id, content_hash);
+
+create trigger notes_updated_at
+  before update on notes
+  for each row execute function update_updated_at();
+
+-- Context table (ephemeral working memory from Claude sessions)
+create table context (
+  id uuid primary key default gen_random_uuid(),
+  key text not null,
+  value text not null,
+  root_folder_id uuid references folders(id) on delete set null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  expires_at timestamptz not null default now() + interval '7 days',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table context enable row level security;
+
+create policy "Users manage own context"
+  on context for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+alter table context add constraint context_user_scope_key_unique unique (user_id, root_folder_id, key);
+create index idx_context_expires on context(expires_at);
+
+create trigger context_updated_at
+  before update on context
+  for each row execute function update_updated_at();

@@ -17,6 +17,8 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SettingsIcon from "@mui/icons-material/Settings";
+import StickyNote2Icon from "@mui/icons-material/StickyNote2";
+import MemoryIcon from "@mui/icons-material/Memory";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import type { Conversation } from "../lib/api";
@@ -103,10 +105,48 @@ export default function Sidebar({
           }}
         >
           <ListItemIcon sx={{ minWidth: 32 }}>
-            <FolderOpenIcon sx={{ fontSize: 18, color: alpha("#ffffff", 0.5) }} />
+            <FolderOpenIcon
+              sx={{ fontSize: 18, color: alpha("#ffffff", 0.5) }}
+            />
           </ListItemIcon>
           <ListItemText
             primary="Documents"
+            primaryTypographyProps={{ variant: "body2" }}
+          />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => navigate("/notes")}
+          sx={{
+            borderRadius: 1.5,
+            py: 0.75,
+            mx: 0.5,
+            "&:hover": { bgcolor: alpha("#ffffff", 0.04) },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <StickyNote2Icon
+              sx={{ fontSize: 18, color: alpha("#ffffff", 0.5) }}
+            />
+          </ListItemIcon>
+          <ListItemText
+            primary="Notes"
+            primaryTypographyProps={{ variant: "body2" }}
+          />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => navigate("/context")}
+          sx={{
+            borderRadius: 1.5,
+            py: 0.75,
+            mx: 0.5,
+            "&:hover": { bgcolor: alpha("#ffffff", 0.04) },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <MemoryIcon sx={{ fontSize: 18, color: alpha("#ffffff", 0.5) }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Context"
             primaryTypographyProps={{ variant: "body2" }}
           />
         </ListItemButton>

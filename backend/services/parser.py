@@ -10,14 +10,20 @@ from docling.document_converter import DocumentConverter
 from langsmith import traceable
 from langsmith.wrappers import wrap_anthropic
 
+PLAIN_TEXT_EXTENSIONS = {".json", ".yaml", ".yml", ".txt", ".text"}
+
 
 def parse_document(file_bytes: bytes, filename: str) -> str:
-    """Extract text content from a document file using Docling.
+    """Extract text content from a document file.
 
-    Supports PDF, DOCX, HTML, Markdown, and plain text.
+    Uses Docling for PDF, DOCX, HTML, Markdown.
+    Reads JSON, YAML, and plain text directly.
     Returns extracted text as a string.
     """
     suffix = Path(filename).suffix.lower()
+
+    if suffix in PLAIN_TEXT_EXTENSIONS:
+        return file_bytes.decode("utf-8", errors="replace")
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(file_bytes)

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from auth import get_current_user
 from db.client import get_supabase
 from services.ingestion import ingest_document
+from services.scope import resolve_root_folder_id
 
 router = APIRouter(prefix="/api/documents")
 
@@ -19,6 +20,9 @@ ALLOWED_EXTENSIONS = {
     ".docx",
     ".html",
     ".htm",
+    ".json",
+    ".yaml",
+    ".yml",
     ".png",
     ".jpg",
     ".jpeg",
@@ -31,6 +35,20 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 AUDIO_EXTENSIONS = {".mp3", ".webm", ".m4a"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25MB
+DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+    ".html",
+    ".htm",
+    ".md",
+    ".markdown",
+    ".txt",
+    ".text",
+    ".json",
+    ".yaml",
+    ".yml",
+}
+MAX_DOCUMENT_SIZE = 50 * 1024 * 1024  # 50MB
 
 
 @router.post("/upload")
@@ -67,6 +85,12 @@ async def upload_document(
             detail=f"Audio too large ({len(file_bytes) // 1024 // 1024}MB). Maximum size is 25MB.",
         )
 
+    if ext in DOCUMENT_EXTENSIONS and len(file_bytes) > MAX_DOCUMENT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document too large ({len(file_bytes) // 1024 // 1024}MB). Max is 50MB.",
+        )
+
     result = ingest_document(
         file_bytes=file_bytes, filename=file.filename, user_id=user_id, folder_id=folder_id
     )
@@ -88,7 +112,7 @@ async def list_documents(
     sb = get_supabase()
     query = (
         sb.table("documents")
-        .select("id, source_filename, metadata, status, created_at, folder_id")
+        .select("id, source_filename, source_type, metadata, status, created_at, folder_id")
         .eq("user_id", user_id)
     )
 
@@ -104,8 +128,12 @@ async def list_documents(
     for doc in result.data:
         fname = doc.get("source_filename") or "unknown"
         if fname not in files:
+            meta = doc.get("metadata") or {}
+            has_file = bool(meta.get("file_url") or meta.get("image_url") or meta.get("audio_url"))
             files[fname] = {
                 "source_filename": fname,
+                "source_type": doc.get("source_type", "text"),
+                "has_file": has_file,
                 "chunks": 0,
                 "status": doc.get("status", "completed"),
                 "created_at": doc["created_at"],
@@ -119,6 +147,38 @@ async def list_documents(
             files[fname]["status"] = "failed"
 
     return list(files.values())
+
+
+@router.get("/{filename}/download")
+async def download_document(filename: str, user_id: str = Depends(get_current_user)):
+    """Generate a signed download URL for the original uploaded file."""
+    sb = get_supabase()
+
+    docs = (
+        sb.table("documents")
+        .select("metadata, source_type")
+        .eq("source_filename", filename)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not docs.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    meta = docs.data[0].get("metadata") or {}
+    file_url = meta.get("file_url") or meta.get("image_url") or meta.get("audio_url")
+    if not file_url:
+        raise HTTPException(status_code=404, detail="Original file not available")
+
+    if meta.get("image_url"):
+        bucket = "images"
+    elif meta.get("audio_url"):
+        bucket = "audio"
+    else:
+        bucket = "documents"
+
+    signed = sb.storage.from_(bucket).create_signed_url(file_url, 300)
+    return {"url": signed["signedURL"]}
 
 
 @router.get("/filters")
@@ -173,7 +233,12 @@ async def move_document(
         if not folder.data:
             raise HTTPException(status_code=404, detail="Target folder not found")
 
-    sb.table("documents").update({"folder_id": body.folder_id}).eq("source_filename", filename).eq(
+    root_folder_id = None
+    if body.folder_id:
+        root_folder_id = resolve_root_folder_id(body.folder_id, user_id)
+
+    update_data = {"folder_id": body.folder_id, "root_folder_id": root_folder_id}
+    sb.table("documents").update(update_data).eq("source_filename", filename).eq(
         "user_id", user_id
     ).execute()
     return {"ok": True}
@@ -196,6 +261,7 @@ async def delete_document(filename: str, user_id: str = Depends(get_current_user
     meta = (docs.data[0].get("metadata") or {}) if docs.data else {}
     image_url = meta.get("image_url")
     audio_url = meta.get("audio_url")
+    file_url = meta.get("file_url")
 
     # Delete document chunks
     sb.table("documents").delete().eq("source_filename", filename).eq("user_id", user_id).execute()
@@ -206,6 +272,8 @@ async def delete_document(filename: str, user_id: str = Depends(get_current_user
             sb.storage.from_("images").remove([image_url])
         if audio_url:
             sb.storage.from_("audio").remove([audio_url])
+        if file_url:
+            sb.storage.from_("documents").remove([file_url])
     except Exception:
         pass  # Non-critical: storage cleanup is best-effort
 
