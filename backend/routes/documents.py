@@ -20,6 +20,9 @@ ALLOWED_EXTENSIONS = {
     ".docx",
     ".html",
     ".htm",
+    ".json",
+    ".yaml",
+    ".yml",
     ".png",
     ".jpg",
     ".jpeg",
@@ -32,7 +35,19 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 AUDIO_EXTENSIONS = {".mp3", ".webm", ".m4a"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25MB
-DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm", ".md", ".markdown", ".txt", ".text"}
+DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+    ".html",
+    ".htm",
+    ".md",
+    ".markdown",
+    ".txt",
+    ".text",
+    ".json",
+    ".yaml",
+    ".yml",
+}
 MAX_DOCUMENT_SIZE = 50 * 1024 * 1024  # 50MB
 
 

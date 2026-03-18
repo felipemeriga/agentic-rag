@@ -45,7 +45,7 @@ import type { UploadTask } from "../hooks/useDocuments";
 import { createFolder, fetchFolders, deleteFolder, downloadDocument } from "../lib/api";
 import FolderTree from "../components/FolderTree";
 
-const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.png,.jpg,.jpeg,.mp3,.webm,.m4a";
+const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.json,.yaml,.yml,.png,.jpg,.jpeg,.mp3,.webm,.m4a";
 
 const pulse = keyframes`
   0% { opacity: 1; transform: scale(1); }

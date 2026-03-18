@@ -31,7 +31,7 @@ Notes:
     To search keywords use: metadata->>'keywords' ILIKE '%term%'
   - NEVER use ILIKE or text operators on jsonb columns.
     Always use ->> to extract as text first.
-  - source_type can be: pdf, docx, html, markdown, text, image, audio
+  - source_type can be: pdf, docx, html, markdown, text, json, yaml, image, audio
   - root_folder_id: uuid (scope — root folder this document belongs to)
   - Always filter by user_id = '{user_id}' to scope to the current user.
   - If root_folder_id filter is provided, also add: AND root_folder_id = '{root_folder_id}'"""

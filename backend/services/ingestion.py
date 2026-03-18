@@ -19,6 +19,9 @@ EXTENSION_TO_TYPE = {
     ".markdown": "markdown",
     ".txt": "text",
     ".text": "text",
+    ".json": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
     ".png": "image",
     ".jpg": "image",
     ".jpeg": "image",
@@ -75,7 +78,19 @@ def upload_audio_to_storage(
     return storage_path
 
 
-DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm", ".md", ".markdown", ".txt", ".text"}
+DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+    ".html",
+    ".htm",
+    ".md",
+    ".markdown",
+    ".txt",
+    ".text",
+    ".json",
+    ".yaml",
+    ".yml",
+}
 
 
 def upload_document_to_storage(
@@ -94,6 +109,9 @@ def upload_document_to_storage(
         "markdown": "text/markdown",
         "txt": "text/plain",
         "text": "text/plain",
+        "json": "application/json",
+        "yaml": "text/yaml",
+        "yml": "text/yaml",
     }
     media_type = mime_types.get(ext, "application/octet-stream")
     sb.storage.from_("documents").upload(storage_path, file_bytes, {"content-type": media_type})
