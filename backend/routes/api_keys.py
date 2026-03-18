@@ -54,17 +54,14 @@ async def list_api_keys(
     )
     keys = []
     for row in result.data:
+        if not row.get("scope_folder_id"):
+            continue
         folder_name = "Unknown"
-        if row.get("scope_folder_id"):
-            folder = (
-                sb.table("folders")
-                .select("name")
-                .eq("id", row["scope_folder_id"])
-                .limit(1)
-                .execute()
-            )
-            if folder.data:
-                folder_name = folder.data[0]["name"]
+        folder = (
+            sb.table("folders").select("name").eq("id", row["scope_folder_id"]).limit(1).execute()
+        )
+        if folder.data:
+            folder_name = folder.data[0]["name"]
         keys.append(
             ApiKeyResponse(
                 id=row["id"],
