@@ -1,11 +1,15 @@
 """Hybrid search: vector + keyword with RRF fusion and reranking."""
 
+import logging
+
 from langsmith import traceable
 
 from db.client import get_supabase
 from services.embeddings import embed_query
 from services.query import generate_multi_queries, rewrite_query
 from services.rerank import rerank
+
+logger = logging.getLogger(__name__)
 
 
 def _vector_search(
@@ -197,4 +201,70 @@ def search_documents(
         fused = _reciprocal_rank_fusion(deduped_vector, deduped_keyword)
 
     # Step 5: Rerank with score threshold filtering
-    return rerank(query_text or "query", fused, top_k=top_k)
+    reranked = rerank(query_text or "query", fused, top_k=top_k)
+
+    # Step 6: Parent document retrieval — expand each result with adjacent chunks
+    return _expand_with_neighbors(reranked)
+
+
+def _expand_with_neighbors(results: list[dict]) -> list[dict]:
+    """Expand each result with content from adjacent chunks in the same document.
+
+    Uses content_hash and chunk_index from metadata to find neighbors.
+    Merges prev + current + next content into a single expanded content field.
+    """
+    if not results:
+        return []
+
+    sb = get_supabase()
+    expanded = []
+
+    for doc in results:
+        meta = doc.get("metadata") or {}
+        chunk_index = meta.get("chunk_index")
+        source_filename = meta.get("source_filename")
+
+        # If we don't have chunk metadata, return as-is
+        if chunk_index is None or source_filename is None:
+            expanded.append(doc)
+            continue
+
+        # Fetch adjacent chunks from the same file
+        neighbor_indices = []
+        if chunk_index > 0:
+            neighbor_indices.append(chunk_index - 1)
+        neighbor_indices.append(chunk_index + 1)
+
+        try:
+            neighbors = (
+                sb.table("documents")
+                .select("content, metadata")
+                .eq("source_filename", source_filename)
+                .execute()
+            )
+
+            # Build a map of chunk_index -> content
+            chunk_map: dict[int, str] = {}
+            for row in neighbors.data:
+                row_meta = row.get("metadata") or {}
+                idx = row_meta.get("chunk_index")
+                if idx is not None:
+                    chunk_map[idx] = row["content"]
+
+            # Assemble expanded content: prev + current + next
+            parts = []
+            if chunk_index - 1 in chunk_map:
+                parts.append(chunk_map[chunk_index - 1])
+            parts.append(doc["content"])
+            if chunk_index + 1 in chunk_map:
+                parts.append(chunk_map[chunk_index + 1])
+
+            expanded_doc = doc.copy()
+            expanded_doc["content"] = "\n\n".join(parts)
+            expanded_doc["expanded"] = len(parts) > 1
+            expanded.append(expanded_doc)
+        except Exception:
+            logger.warning("Failed to expand chunk neighbors", exc_info=True)
+            expanded.append(doc)
+
+    return expanded
