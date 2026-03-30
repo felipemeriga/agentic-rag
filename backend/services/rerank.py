@@ -16,11 +16,21 @@ def _get_client() -> voyageai.Client:
     return _client
 
 
-def rerank(query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
+RERANK_SCORE_THRESHOLD = 0.2
+
+
+def rerank(
+    query: str,
+    documents: list[dict],
+    top_k: int = 5,
+    score_threshold: float = RERANK_SCORE_THRESHOLD,
+) -> list[dict]:
     """Rerank documents by relevance to query using voyage-rerank-2.
 
     Each document dict must have a 'content' key.
     Returns the top_k most relevant documents with rerank_score added.
+    Documents below score_threshold are filtered out to avoid feeding
+    irrelevant chunks to the LLM.
     Falls back to returning the first top_k documents if reranking fails.
     """
     if not documents:
@@ -37,6 +47,8 @@ def rerank(query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
 
         reranked = []
         for r in result.results:
+            if r.relevance_score < score_threshold:
+                continue
             doc = documents[r.index].copy()
             doc["rerank_score"] = r.relevance_score
             reranked.append(doc)
