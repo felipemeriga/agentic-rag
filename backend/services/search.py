@@ -222,14 +222,14 @@ def _expand_with_neighbors(results: list[dict]) -> list[dict]:
     for doc in results:
         meta = doc.get("metadata") or {}
         chunk_index = meta.get("chunk_index")
-        source_filename = meta.get("source_filename")
+        content_hash = doc.get("content_hash")
 
-        # If we don't have chunk metadata, return as-is
-        if chunk_index is None or source_filename is None:
+        # If we don't have chunk metadata or content_hash, return as-is
+        if chunk_index is None or not content_hash:
             expanded.append(doc)
             continue
 
-        # Fetch adjacent chunks from the same file
+        # Fetch adjacent chunks from the same file (scoped by content_hash)
         neighbor_indices = []
         if chunk_index > 0:
             neighbor_indices.append(chunk_index - 1)
@@ -239,7 +239,7 @@ def _expand_with_neighbors(results: list[dict]) -> list[dict]:
             neighbors = (
                 sb.table("documents")
                 .select("content, metadata")
-                .eq("source_filename", source_filename)
+                .eq("content_hash", content_hash)
                 .execute()
             )
 

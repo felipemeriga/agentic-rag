@@ -99,7 +99,8 @@ returns table (
   id uuid,
   content text,
   metadata jsonb,
-  similarity float
+  similarity float,
+  content_hash text
 )
 language sql stable
 as $$
@@ -107,7 +108,8 @@ as $$
     id,
     content,
     metadata,
-    1 - (embedding <=> query_embedding) as similarity
+    1 - (embedding <=> query_embedding) as similarity,
+    content_hash
   from documents
   where (user_id = filter_user_id or user_id is null)
     and (filter_topic is null or metadata->>'topic' = filter_topic)
@@ -130,7 +132,8 @@ returns table (
   id uuid,
   content text,
   metadata jsonb,
-  rank real
+  rank real,
+  content_hash text
 )
 language sql stable
 as $$
@@ -138,7 +141,8 @@ as $$
     id,
     content,
     metadata,
-    ts_rank(fts, websearch_to_tsquery('english', search_query)) as rank
+    ts_rank(fts, websearch_to_tsquery('english', search_query)) as rank,
+    content_hash
   from documents
   where fts @@ websearch_to_tsquery('english', search_query)
     and (user_id = filter_user_id or user_id is null)
