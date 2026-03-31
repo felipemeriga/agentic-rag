@@ -25,7 +25,7 @@ async def evaluate_pipeline(request: EvaluationRequest, user_id: str = Depends(g
     then scores with Faithfulness, Answer Relevancy, Context Precision/Recall.
     """
     questions = [q.model_dump() for q in request.test_questions]
-    result = evaluate_rag_pipeline(
+    result = await evaluate_rag_pipeline(
         test_questions=questions,
         user_id=user_id,
         root_folder_id=request.root_folder_id,

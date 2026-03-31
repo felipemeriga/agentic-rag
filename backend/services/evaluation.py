@@ -1,7 +1,9 @@
 """RAG pipeline evaluation using RAGAS metrics."""
 
+import asyncio
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import anthropic
 from langsmith import traceable
@@ -17,6 +19,8 @@ from ragas.metrics import (
 
 from services.embeddings import embed_query
 from services.search import search_documents
+
+_executor = ThreadPoolExecutor(max_workers=1)
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +65,7 @@ def _run_generation(query: str, contexts: list[str]) -> str:
 
 
 @traceable(name="evaluate_rag_pipeline", run_type="chain")
-def evaluate_rag_pipeline(
+async def evaluate_rag_pipeline(
     test_questions: list[dict],
     user_id: str | None = None,
     root_folder_id: str | None = None,
@@ -110,7 +114,12 @@ def evaluate_rag_pipeline(
     else:
         metrics.append(LLMContextPrecisionWithoutReference())
 
-    result = evaluate(dataset=dataset, metrics=metrics, llm=llm)
+    # Run RAGAS evaluate in a separate thread to avoid nested event loop conflict
+    # with uvloop (FastAPI's async runtime)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        _executor, lambda: evaluate(dataset=dataset, metrics=metrics, llm=llm)
+    )
 
     # Build per-question details
     details = []
