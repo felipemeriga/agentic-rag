@@ -62,6 +62,7 @@ def knowledge_base_search(query: str) -> str:
         query_text=query,
         user_id=_current_user_id.get(),
         root_folder_id=_current_scope_folder_id.get(),
+        fast_mode=True,
     )
     if not results:
         return "No relevant documents found in the knowledge base."

@@ -116,16 +116,35 @@ def search_documents(
     topic: str | None = None,
     keyword: str | None = None,
     root_folder_id: str | None = None,
+    fast_mode: bool = False,
 ) -> list[dict]:
-    """Advanced hybrid search pipeline.
+    """Hybrid search pipeline with optional query enhancement.
 
-    1. Rewrite the query for better term coverage
-    2. Generate multi-query variants for broader recall
-    3. Run vector + keyword search for each variant
-    4. Merge all results with RRF fusion
-    5. Rerank with Voyage and filter by score threshold
+    fast_mode=False (UI chat): rewrite + multi-query + hybrid search + RRF + rerank + neighbors
+    fast_mode=True (MCP): hybrid search + RRF + rerank + neighbors (skips LLM calls)
     """
     fetch_k = 20
+
+    if fast_mode:
+        # Fast path: skip query rewriting and multi-query, use original query directly
+        vector_results, keyword_results = _run_hybrid_search(
+            query_embedding, query_text, user_id, fetch_k, topic, keyword, root_folder_id
+        )
+
+        if not vector_results and not keyword_results:
+            return []
+
+        if not keyword_results:
+            fused = vector_results
+        elif not vector_results:
+            fused = keyword_results
+        else:
+            fused = _reciprocal_rank_fusion(vector_results, keyword_results)
+
+        reranked = rerank(query_text or "query", fused, top_k=top_k)
+        return _expand_with_neighbors(reranked)
+
+    # Full path: query rewriting + multi-query for better recall
 
     # Step 1: Rewrite the original query for better retrieval
     rewritten = query_text
