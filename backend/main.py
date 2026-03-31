@@ -8,6 +8,7 @@ from routes.context import router as context_router
 from routes.conversations import router as conversations_router
 from routes.documents import router as documents_router
 from routes.drop import router as drop_router
+from routes.evaluation import router as evaluation_router
 from routes.folders import router as folders_router
 from routes.notes import router as notes_router
 
@@ -29,6 +30,7 @@ app.include_router(documents_router)
 app.include_router(folders_router)
 app.include_router(api_keys_router)
 app.include_router(drop_router)
+app.include_router(evaluation_router)
 app.include_router(notes_router)
 app.include_router(context_router)
 

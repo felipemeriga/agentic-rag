@@ -173,8 +173,20 @@ def ingest_document(
     inserted_ids: list[str] = []
 
     for i, chunk in enumerate(chunks):
-        embedding = embed_document(chunk)
         meta = extract_metadata(chunk)
+
+        # Build contextual header for better embedding quality
+        header_parts = [f"Source: {filename}"]
+        if meta["topic"] != "unknown":
+            header_parts.append(f"Topic: {meta['topic']}")
+        if meta["keywords"]:
+            header_parts.append(f"Keywords: {', '.join(meta['keywords'])}")
+        header_parts.append(f"Chunk {i + 1} of {len(chunks)}")
+        contextual_header = " | ".join(header_parts)
+
+        # Embed the chunk with contextual header for better retrieval
+        chunk_with_context = f"{contextual_header}\n\n{chunk}"
+        embedding = embed_document(chunk_with_context)
 
         metadata = {
             "source_filename": filename,

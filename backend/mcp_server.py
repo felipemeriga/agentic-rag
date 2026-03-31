@@ -16,6 +16,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from db.client import get_supabase
 from services.embeddings import embed_query
+from services.evaluation import evaluate_rag_pipeline
 from services.search import search_documents
 from services.text_to_sql import generate_and_execute_sql
 
@@ -61,6 +62,7 @@ def knowledge_base_search(query: str) -> str:
         query_text=query,
         user_id=_current_user_id.get(),
         root_folder_id=_current_scope_folder_id.get(),
+        fast_mode=True,
     )
     if not results:
         return "No relevant documents found in the knowledge base."
@@ -303,6 +305,57 @@ def clear_context(key: str = "") -> str:
         query = query.eq("key", key)
     query.execute()
     return f"Context cleared: {'key=' + key if key else 'all'}"
+
+
+@mcp.tool()
+def evaluate_retrieval(questions: str) -> str:
+    """Evaluate the RAG pipeline quality using RAGAS metrics.
+
+    Runs test questions through retrieval + generation and scores with
+    Faithfulness, Answer Relevancy, and Context Precision.
+
+    Args:
+        questions: Newline-separated list of test questions.
+            Optionally add ground truth after a pipe: "question | ground truth"
+    """
+    if not _current_user_id.get():
+        return "Error: Not authenticated."
+
+    test_questions = []
+    for line in questions.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if "|" in line:
+            q, gt = line.split("|", 1)
+            test_questions.append({"question": q.strip(), "ground_truth": gt.strip()})
+        else:
+            test_questions.append({"question": line})
+
+    if not test_questions:
+        return "Error: No questions provided."
+
+    result = evaluate_rag_pipeline(
+        test_questions=test_questions,
+        user_id=_current_user_id.get(),
+        root_folder_id=_current_scope_folder_id.get(),
+    )
+
+    # Format results
+    lines = ["## RAGAS Evaluation Results\n"]
+    lines.append("### Aggregate Scores")
+    for metric, score in result["aggregate"].items():
+        lines.append(f"- **{metric}**: {score:.3f}")
+
+    lines.append(f"\n### Per-Question Details ({result['num_questions']} questions)")
+    for detail in result["details"]:
+        lines.append(f"\n**Q:** {detail['question']}")
+        lines.append(f"**A:** {detail['response'][:200]}...")
+        lines.append(f"**Contexts retrieved:** {detail['num_contexts']}")
+        for metric, score in detail["scores"].items():
+            lines.append(f"  - {metric}: {score:.3f}")
+
+    return "\n".join(lines)
 
 
 class ApiKeyAuthMiddleware:
