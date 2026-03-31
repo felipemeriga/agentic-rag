@@ -114,12 +114,21 @@ async def evaluate_rag_pipeline(
     else:
         metrics.append(LLMContextPrecisionWithoutReference())
 
-    # Run RAGAS evaluate in a separate thread to avoid nested event loop conflict
-    # with uvloop (FastAPI's async runtime)
+    # Run RAGAS evaluate in a separate thread with a standard asyncio event loop.
+    # uvloop (used by uvicorn) doesn't support nested event loops, and RAGAS
+    # internally calls asyncio.run/get_event_loop. We force the default policy
+    # in the worker thread so RAGAS gets a plain asyncio loop.
+    def _run_evaluate():
+        asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            return evaluate(dataset=dataset, metrics=metrics, llm=llm)
+        finally:
+            new_loop.close()
+
     loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(
-        _executor, lambda: evaluate(dataset=dataset, metrics=metrics, llm=llm)
-    )
+    result = await loop.run_in_executor(_executor, _run_evaluate)
 
     # Build per-question details
     details = []
