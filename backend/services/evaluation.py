@@ -51,7 +51,20 @@ class VoyageEmbeddings(BaseRagasEmbeddings):
 def _get_ragas_llm():
     """Create a RAGAS-compatible LLM using Claude."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    return llm_factory("claude-haiku-4-5-20251001", provider="anthropic", client=client)
+    llm = llm_factory("claude-haiku-4-5-20251001", provider="anthropic", client=client)
+    # Claude API rejects requests with both temperature and top_p set.
+    # RAGAS defaults both; patch _map_provider_params to exclude top_p.
+    _original_map = llm._map_provider_params
+
+    def _anthropic_params():
+        params = _original_map()
+        # params is a pydantic model; convert to dict and drop top_p
+        d = dict(params) if not isinstance(params, dict) else params
+        d.pop("top_p", None)
+        return d
+
+    llm._map_provider_params = _anthropic_params
+    return llm
 
 
 def _run_retrieval(query: str, user_id: str | None, root_folder_id: str | None) -> list[str]:
@@ -174,7 +187,7 @@ async def evaluate_rag_pipeline(
         )
 
     return {
-        "aggregate": {k: v for k, v in result.items() if isinstance(v, float)},
+        "aggregate": result._repr_dict,
         "num_questions": len(test_questions),
         "details": details,
     }
