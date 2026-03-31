@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import math
 import os
 from concurrent.futures import ThreadPoolExecutor
 
@@ -61,6 +62,7 @@ def _get_ragas_llm():
         # params is a pydantic model; convert to dict and drop top_p
         d = dict(params) if not isinstance(params, dict) else params
         d.pop("top_p", None)
+        d["max_tokens"] = 4096
         return d
 
     llm._map_provider_params = _anthropic_params
@@ -186,8 +188,20 @@ async def evaluate_rag_pipeline(
             }
         )
 
+    def _sanitize(v):
+        """Replace NaN/Inf with None for JSON serialization."""
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            return None
+        return v
+
     return {
-        "aggregate": result._repr_dict,
+        "aggregate": {k: _sanitize(v) for k, v in result._repr_dict.items()},
         "num_questions": len(test_questions),
-        "details": details,
+        "details": [
+            {
+                **d,
+                "scores": {k: _sanitize(v) for k, v in d["scores"].items()},
+            }
+            for d in details
+        ],
     }
