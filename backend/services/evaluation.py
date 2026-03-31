@@ -6,8 +6,10 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 import anthropic
+import voyageai
 from langsmith import traceable
 from ragas import EvaluationDataset, SingleTurnSample, evaluate
+from ragas.embeddings import BaseRagasEmbeddings
 from ragas.llms import llm_factory
 from ragas.metrics import (
     AnswerRelevancy,
@@ -23,6 +25,27 @@ from services.search import search_documents
 _executor = ThreadPoolExecutor(max_workers=1)
 
 logger = logging.getLogger(__name__)
+
+
+class VoyageEmbeddings(BaseRagasEmbeddings):
+    """RAGAS-compatible wrapper around Voyage AI embeddings."""
+
+    def __init__(self):
+        self._client = voyageai.Client(api_key=os.environ["VOYAGE_API_KEY"])
+
+    def embed_query(self, text: str) -> list[float]:
+        result = self._client.embed([text], model="voyage-3", input_type="query")
+        return result.embeddings[0]
+
+    def embed_documents(self, texts: list) -> list:
+        result = self._client.embed(texts, model="voyage-3", input_type="document")
+        return result.embeddings
+
+    async def aembed_query(self, text: str) -> list[float]:
+        return self.embed_query(text)
+
+    async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.embed_documents(texts)
 
 
 def _get_ragas_llm():
@@ -83,6 +106,7 @@ async def evaluate_rag_pipeline(
         Dict with aggregate scores and per-question details.
     """
     llm = _get_ragas_llm()
+    embeddings = VoyageEmbeddings()
 
     samples = []
     for item in test_questions:
@@ -123,7 +147,7 @@ async def evaluate_rag_pipeline(
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
         try:
-            return evaluate(dataset=dataset, metrics=metrics, llm=llm)
+            return evaluate(dataset=dataset, metrics=metrics, llm=llm, embeddings=embeddings)
         finally:
             new_loop.close()
 
