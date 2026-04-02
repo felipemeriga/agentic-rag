@@ -184,7 +184,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           fullWidth
           multiline
           maxRows={4}
-          placeholder="Type a message..."
+          placeholder="Ask a question about your documents..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
