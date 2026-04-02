@@ -12,7 +12,9 @@ FROM python:3.10-slim-bookworm
 # Fix for "At least one invalid signature was encountered" error in Debian Bookworm
 RUN echo "APT::Sandbox::User \"root\";" > /etc/apt/apt.conf.d/99-sandbox-disable && \
     apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl libxcb1 libgl1 libglib2.0-0 && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl \
+        libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1 libx11-6 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
