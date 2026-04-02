@@ -17,7 +17,6 @@ import {
   TextField,
   alpha,
   Chip,
-  LinearProgress,
   Paper,
   Badge,
   Tooltip,
@@ -31,21 +30,24 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import CloseIcon from "@mui/icons-material/Close";
 import FolderIcon from "@mui/icons-material/Folder";
 import MicIcon from "@mui/icons-material/Mic";
 import StopIcon from "@mui/icons-material/Stop";
 import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
-import type { UploadTask } from "../hooks/useDocuments";
-import { createFolder, fetchFolders, deleteFolder, downloadDocument } from "../lib/api";
+import { useIngestionStatus } from "../hooks/useIngestionStatus";
+import {
+  createFolder,
+  fetchFolders,
+  deleteFolder,
+  downloadDocument,
+} from "../lib/api";
 import FolderTree from "../components/FolderTree";
+import IngestionDrawer from "../components/IngestionDrawer";
 
-const ACCEPTED_TYPES = ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.json,.yaml,.yml,.png,.jpg,.jpeg,.mp3,.webm,.m4a";
+const ACCEPTED_TYPES =
+  ".txt,.text,.md,.markdown,.pdf,.docx,.html,.htm,.json,.yaml,.yml,.png,.jpg,.jpeg,.mp3,.webm,.m4a";
 
 const pulse = keyframes`
   0% { opacity: 1; transform: scale(1); }
@@ -53,39 +55,6 @@ const pulse = keyframes`
   100% { opacity: 1; transform: scale(1); }
 `;
 const SIDEBAR_WIDTH = 260;
-
-function UploadStatusIcon({ status }: { status: UploadTask["status"] }) {
-  switch (status) {
-    case "uploading":
-    case "processing":
-      return null;
-    case "done":
-      return (
-        <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
-      );
-    case "error":
-      return <ErrorIcon fontSize="small" sx={{ color: "error.main" }} />;
-    case "duplicate":
-      return (
-        <ContentCopyIcon fontSize="small" sx={{ color: "warning.main" }} />
-      );
-  }
-}
-
-function statusLabel(status: UploadTask["status"]): string {
-  switch (status) {
-    case "uploading":
-      return "Uploading...";
-    case "processing":
-      return "Parsing, chunking & embedding...";
-    case "done":
-      return "Completed";
-    case "error":
-      return "Failed";
-    case "duplicate":
-      return "Duplicate";
-  }
-}
 
 export default function DocumentsPage() {
   const navigate = useNavigate();
@@ -104,13 +73,8 @@ export default function DocumentsPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [folderTreeKey, setFolderTreeKey] = useState(0);
 
-  // Upload dialog
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-
   // Folder drag-over for file grid area
-  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(
-    null,
-  );
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -119,24 +83,28 @@ export default function DocumentsPage() {
     name: string;
   } | null>(null);
 
-  const {
-    documents,
-    uploads,
-    hasActiveUploads,
-    error,
-    upload: rawUpload,
-    move,
-    remove,
-    clearUploads,
-  } = useDocuments(currentFolderId);
+  const { documents, error, loadDocuments, move, remove } =
+    useDocuments(currentFolderId);
 
-  const upload = useCallback(
-    (file: File, targetFolderId?: string | null) => {
-      setUploadDialogOpen(true);
-      return rawUpload(file, targetFolderId);
-    },
-    [rawUpload],
-  );
+  const {
+    tasks: ingestionTasks,
+    hasActiveTasks,
+    drawerOpen: ingestionDrawerOpen,
+    upload,
+    openDrawer: openIngestionDrawer,
+    closeDrawer: closeIngestionDrawer,
+    cancelAutoClose,
+  } = useIngestionStatus();
+
+  // Refresh document list when ingestion tasks complete
+  useEffect(() => {
+    const completedCount = ingestionTasks.filter(
+      (t) => t.stage === "completed"
+    ).length;
+    if (completedCount > 0) {
+      loadDocuments();
+    }
+  }, [ingestionTasks, loadDocuments]);
 
   // Recording timer
   useEffect(() => {
@@ -166,7 +134,7 @@ export default function DocumentsPage() {
         const file = new File([blob], `recording-${Date.now()}.${ext}`, {
           type: blob.type,
         });
-        upload(file);
+        upload(file, currentFolderId);
         stream.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
         mediaRecorderRef.current = null;
@@ -205,7 +173,7 @@ export default function DocumentsPage() {
     const files = e.target.files;
     if (!files) return;
     for (const file of Array.from(files)) {
-      upload(file);
+      upload(file, currentFolderId);
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -216,10 +184,10 @@ export default function DocumentsPage() {
       setDragOver(false);
       const files = Array.from(e.dataTransfer.files);
       for (const file of files) {
-        upload(file);
+        upload(file, currentFolderId);
       }
     },
-    [upload],
+    [upload, currentFolderId]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -231,15 +199,15 @@ export default function DocumentsPage() {
     setDragOver(false);
   }, []);
 
-  const [subFolders, setSubFolders] = useState<
-    { id: string; name: string }[]
-  >([]);
+  const [subFolders, setSubFolders] = useState<{ id: string; name: string }[]>(
+    []
+  );
 
   // Load subfolders of current directory for the grid view
   const loadSubFolders = useCallback(() => {
     fetchFolders(currentFolderId)
       .then((data) =>
-        setSubFolders(data.map((f) => ({ id: f.id, name: f.name }))),
+        setSubFolders(data.map((f) => ({ id: f.id, name: f.name })))
       )
       .catch(() => {});
   }, [currentFolderId]);
@@ -261,7 +229,7 @@ export default function DocumentsPage() {
     (folderId: string, folderName: string) => {
       setDeleteConfirm({ type: "folder", id: folderId, name: folderName });
     },
-    [],
+    []
   );
 
   const handleConfirmDelete = async () => {
@@ -289,7 +257,7 @@ export default function DocumentsPage() {
   };
 
   const isEmpty =
-    subFolders.length === 0 && documents.length === 0 && !hasActiveUploads;
+    subFolders.length === 0 && documents.length === 0 && !hasActiveTasks;
 
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
@@ -360,7 +328,14 @@ export default function DocumentsPage() {
       </Box>
 
       {/* Main Content */}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         {/* Toolbar */}
         <Box
           sx={{
@@ -377,18 +352,14 @@ export default function DocumentsPage() {
           <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
             {currentFolderId ? "Folder Contents" : "All Documents"}
           </Typography>
-          {uploads.length > 0 && (
-            <Tooltip title="Upload progress">
-              <IconButton
-                size="small"
-                onClick={() => setUploadDialogOpen(true)}
-              >
+          {ingestionTasks.length > 0 && (
+            <Tooltip title="Processing status">
+              <IconButton size="small" onClick={openIngestionDrawer}>
                 <Badge
                   badgeContent={
-                    uploads.filter(
-                      (u) =>
-                        u.status === "uploading" ||
-                        u.status === "processing",
+                    ingestionTasks.filter(
+                      (t) =>
+                        !["completed", "error", "duplicate"].includes(t.stage)
                     ).length || undefined
                   }
                   color="primary"
@@ -426,9 +397,7 @@ export default function DocumentsPage() {
             sx={{
               border: 2,
               borderStyle: "dashed",
-              borderColor: dragOver
-                ? "primary.main"
-                : alpha("#ffffff", 0.08),
+              borderColor: dragOver ? "primary.main" : alpha("#ffffff", 0.08),
               borderRadius: 3,
               p: 2.5,
               mb: 3,
@@ -451,10 +420,7 @@ export default function DocumentsPage() {
             <Typography color="text.secondary" variant="body2">
               Drop files here or click to browse
             </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: alpha("#ffffff", 0.3) }}
-            >
+            <Typography variant="caption" sx={{ color: alpha("#ffffff", 0.3) }}>
               PDF, DOCX, HTML, Markdown, text, JSON, YAML, PNG, JPEG, or audio
             </Typography>
             <Box
@@ -472,7 +438,9 @@ export default function DocumentsPage() {
                   bgcolor: isRecording
                     ? alpha("#ef4444", 0.2)
                     : alpha("#6366f1", 0.1),
-                  border: `1px solid ${isRecording ? alpha("#ef4444", 0.5) : alpha("#6366f1", 0.25)}`,
+                  border: `1px solid ${
+                    isRecording ? alpha("#ef4444", 0.5) : alpha("#6366f1", 0.25)
+                  }`,
                   color: isRecording ? "#ef4444" : alpha("#6366f1", 0.7),
                   "&:hover": {
                     bgcolor: isRecording
@@ -488,9 +456,7 @@ export default function DocumentsPage() {
                 )}
               </IconButton>
               {isRecording && (
-                <Box
-                  sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
-                >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <Box
                     sx={{
                       width: 8,
@@ -536,8 +502,7 @@ export default function DocumentsPage() {
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fill, minmax(150px, 1fr))",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
                   gap: 1.5,
                 }}
               >
@@ -553,7 +518,7 @@ export default function DocumentsPage() {
                       e.preventDefault();
                       e.stopPropagation();
                       setDragOverFolderId((prev) =>
-                        prev === folder.id ? null : prev,
+                        prev === folder.id ? null : prev
                       );
                     }}
                     onDrop={(e) => {
@@ -562,15 +527,15 @@ export default function DocumentsPage() {
                       setDragOverFolderId(null);
                       setDragOver(false);
                       const docFilename = e.dataTransfer.getData(
-                        "application/x-document-filename",
+                        "application/x-document-filename"
                       );
                       if (docFilename) {
                         move(docFilename, folder.id);
                         return;
                       }
-                      const files = Array.from(e.dataTransfer.files);
-                      for (const file of files) {
-                        upload(file, folder.id);
+                      const droppedFiles = Array.from(e.dataTransfer.files);
+                      for (const f of droppedFiles) {
+                        upload(f, folder.id);
                       }
                     }}
                     sx={{
@@ -664,7 +629,7 @@ export default function DocumentsPage() {
                     onDragStart={(e) => {
                       e.dataTransfer.setData(
                         "application/x-document-filename",
-                        doc.source_filename,
+                        doc.source_filename
                       );
                       e.dataTransfer.effectAllowed = "move";
                     }}
@@ -688,7 +653,9 @@ export default function DocumentsPage() {
                           <Tooltip title="Download original file">
                             <IconButton
                               size="small"
-                              onClick={() => handleDownload(doc.source_filename)}
+                              onClick={() =>
+                                handleDownload(doc.source_filename)
+                              }
                               sx={{
                                 opacity: 0.4,
                                 "&:hover": { opacity: 1 },
@@ -749,9 +716,7 @@ export default function DocumentsPage() {
                               label={doc.status}
                               size="small"
                               color={
-                                doc.status === "processing"
-                                  ? "info"
-                                  : "error"
+                                doc.status === "processing" ? "info" : "error"
                               }
                             />
                           )}
@@ -779,10 +744,7 @@ export default function DocumentsPage() {
               <FolderIcon
                 sx={{ fontSize: 56, color: alpha("#ffffff", 0.08), mb: 1.5 }}
               />
-              <Typography
-                variant="body2"
-                sx={{ color: alpha("#ffffff", 0.3) }}
-              >
+              <Typography variant="body2" sx={{ color: alpha("#ffffff", 0.3) }}>
                 {currentFolderId
                   ? "This folder is empty"
                   : "No documents yet. Upload files to get started."}
@@ -825,162 +787,13 @@ export default function DocumentsPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Upload Progress Dialog */}
-      <Dialog
-        open={uploadDialogOpen && uploads.length > 0}
-        onClose={
-          hasActiveUploads
-            ? undefined
-            : () => {
-                setUploadDialogOpen(false);
-                clearUploads();
-              }
-        }
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            bgcolor: alpha("#12121a", 0.95),
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <CloudUploadIcon sx={{ color: "primary.main" }} />
-            <Typography variant="h6">
-              Uploads
-              {hasActiveUploads && (
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{ ml: 1, color: "text.secondary" }}
-                >
-                  (
-                  {
-                    uploads.filter(
-                      (u) =>
-                        u.status === "uploading" ||
-                        u.status === "processing",
-                    ).length
-                  }{" "}
-                  in progress)
-                </Typography>
-              )}
-            </Typography>
-          </Box>
-          {!hasActiveUploads && (
-            <IconButton
-              size="small"
-              onClick={() => {
-                setUploadDialogOpen(false);
-                clearUploads();
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
-          <List disablePadding>
-            {uploads.map((task) => (
-              <ListItem
-                key={task.id}
-                sx={{
-                  px: 0,
-                  flexDirection: "column",
-                  alignItems: "stretch",
-                  gap: 0.5,
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    width: "100%",
-                  }}
-                >
-                  <InsertDriveFileIcon
-                    sx={{
-                      fontSize: 18,
-                      color: alpha("#ffffff", 0.35),
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Typography
-                    variant="body2"
-                    noWrap
-                    sx={{ flex: 1, fontWeight: 500 }}
-                  >
-                    {task.filename}
-                  </Typography>
-                  <UploadStatusIcon status={task.status} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color:
-                        task.status === "error"
-                          ? "error.main"
-                          : task.status === "done"
-                            ? "success.main"
-                            : task.status === "duplicate"
-                              ? "warning.main"
-                              : "text.secondary",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {statusLabel(task.status)}
-                    {task.status === "done" && task.chunks
-                      ? ` · ${task.chunks} chunks`
-                      : ""}
-                  </Typography>
-                </Box>
-                {(task.status === "uploading" ||
-                  task.status === "processing") && (
-                  <LinearProgress
-                    sx={{
-                      borderRadius: 1,
-                      height: 2,
-                      bgcolor: alpha("#6366f1", 0.1),
-                      "& .MuiLinearProgress-bar": {
-                        bgcolor: "primary.main",
-                      },
-                    }}
-                  />
-                )}
-                {task.status === "error" && task.errorMessage && (
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "error.main", pl: 3 }}
-                  >
-                    {task.errorMessage}
-                  </Typography>
-                )}
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        {!hasActiveUploads && (
-          <DialogActions>
-            <Button
-              onClick={() => {
-                setUploadDialogOpen(false);
-                clearUploads();
-              }}
-            >
-              Close
-            </Button>
-          </DialogActions>
-        )}
-      </Dialog>
+      {/* Ingestion Drawer */}
+      <IngestionDrawer
+        open={ingestionDrawerOpen}
+        tasks={ingestionTasks}
+        onClose={closeIngestionDrawer}
+        onInteract={cancelAutoClose}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog
