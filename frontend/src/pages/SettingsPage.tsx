@@ -23,8 +23,6 @@ import {
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyIcon from "@mui/icons-material/Key";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useNavigate } from "react-router-dom";
 import {
   fetchApiKeys,
   createApiKey,
@@ -35,7 +33,6 @@ import {
 } from "../lib/api";
 
 export default function SettingsPage() {
-  const navigate = useNavigate();
   const [keys, setKeys] = useState<ApiKeyInfo[]>([]);
   const [scopes, setScopes] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,190 +103,200 @@ export default function SettingsPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
-        bgcolor: "#0a0a12",
         display: "flex",
         flexDirection: "column",
+        flex: 1,
+        p: 3,
       }}
     >
-      <Box
-        sx={{
-          p: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <IconButton onClick={() => navigate("/")} size="small">
-          <ArrowBackIcon />
-        </IconButton>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
           Settings
         </Typography>
       </Box>
 
-      <Box sx={{ p: 3, maxWidth: 600, mx: "auto", width: "100%" }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-          MCP API Keys
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{ mb: 3, color: alpha("#ffffff", 0.6) }}
-        >
-          Generate API keys scoped to root folders. Each scope (e.g., Work,
-          Personal) gets its own key for isolated MCP access.
-        </Typography>
-
+      <Box sx={{ maxWidth: 700, mx: "auto", width: "100%" }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
-        {newKey && (
-          <Alert
-            severity="warning"
-            sx={{ mb: 2 }}
-            action={
-              <Tooltip title={copied ? "Copied!" : "Copy"}>
-                <IconButton size="small" onClick={handleCopy}>
-                  <ContentCopyIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            }
-          >
-            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Copy your API key now — it won't be shown again
-            </Typography>
-            <TextField
-              fullWidth
-              size="small"
-              value={newKey}
-              slotProps={{ input: { readOnly: true } }}
-              sx={{
-                mt: 1,
-                "& .MuiInputBase-input": {
-                  fontFamily: "monospace",
-                  fontSize: "0.8rem",
-                },
-              }}
-            />
-          </Alert>
-        )}
-
-        {keys.map((k) => (
-          <Paper
-            key={k.id}
-            sx={{
-              p: 2,
-              mb: 1,
-              bgcolor: alpha("#ffffff", 0.03),
-              border: 1,
-              borderColor: alpha("#ffffff", 0.08),
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <KeyIcon sx={{ fontSize: 18, color: "#6366f1" }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {k.name}
-                </Typography>
-                <Chip
-                  label={k.scope_folder_name}
-                  size="small"
-                  color="primary"
-                  sx={{ height: 20, fontSize: "0.7rem" }}
-                />
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography
-                  variant="caption"
-                  sx={{ color: alpha("#ffffff", 0.4) }}
-                >
-                  {new Date(k.created_at).toLocaleDateString()}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => setRevokeTarget(k.id)}
-                  sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-          </Paper>
-        ))}
-
-        <Box sx={{ display: "flex", gap: 1, mt: 2, alignItems: "flex-end" }}>
-          <TextField
-            label="Key name"
-            size="small"
-            value={keyName}
-            onChange={(e) => setKeyName(e.target.value)}
-            sx={{ flex: 1 }}
-          />
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Scope</InputLabel>
-            <Select
-              value={selectedScope}
-              label="Scope"
-              onChange={(e) => setSelectedScope(e.target.value)}
-            >
-              {scopes.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button
-            variant="contained"
-            startIcon={<KeyIcon />}
-            onClick={handleGenerate}
-            disabled={loading || !selectedScope}
-          >
-            Generate
-          </Button>
-        </Box>
-
-        {scopes.length === 0 && !loading && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Create a root folder in Documents first — root folders serve as
-            scopes for API keys.
-          </Alert>
-        )}
-
-        <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 600 }}>
-          Connect MCP Client
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{ mb: 2, color: alpha("#ffffff", 0.6) }}
-        >
-          Add this to your MCP client configuration (e.g.,{" "}
-          <code>.mcp.json</code> for Claude Code):
-        </Typography>
-        <Paper
+        {/* Card 1: API Keys */}
+        <Box
           sx={{
-            p: 2,
-            bgcolor: alpha("#000000", 0.3),
+            bgcolor: alpha("#1a1a28", 0.6),
             border: 1,
-            borderColor: alpha("#ffffff", 0.08),
-            fontFamily: "monospace",
-            fontSize: "0.8rem",
-            whiteSpace: "pre",
-            overflow: "auto",
+            borderColor: alpha("#ffffff", 0.06),
+            borderRadius: 4,
+            p: 3,
+            mb: 3,
           }}
         >
-          {`{
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            MCP API Keys
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 3, color: alpha("#ffffff", 0.6) }}
+          >
+            Generate API keys scoped to root folders. Each scope (e.g., Work,
+            Personal) gets its own key for isolated MCP access.
+          </Typography>
+
+          {newKey && (
+            <Alert
+              severity="warning"
+              sx={{ mb: 2 }}
+              action={
+                <Tooltip title={copied ? "Copied!" : "Copy"}>
+                  <IconButton size="small" onClick={handleCopy}>
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              }
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Copy your API key now — it won't be shown again
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={newKey}
+                slotProps={{ input: { readOnly: true } }}
+                sx={{
+                  mt: 1,
+                  "& .MuiInputBase-input": {
+                    fontFamily: "monospace",
+                    fontSize: "0.8rem",
+                  },
+                }}
+              />
+            </Alert>
+          )}
+
+          {keys.map((k) => (
+            <Paper
+              key={k.id}
+              sx={{
+                p: 2,
+                mb: 1,
+                bgcolor: alpha("#ffffff", 0.03),
+                border: 1,
+                borderColor: alpha("#ffffff", 0.08),
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <KeyIcon sx={{ fontSize: 18, color: "#7c3aed" }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {k.name}
+                  </Typography>
+                  <Chip
+                    label={k.scope_folder_name}
+                    size="small"
+                    color="primary"
+                    sx={{ height: 20, fontSize: "0.7rem" }}
+                  />
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: alpha("#ffffff", 0.4) }}
+                  >
+                    {new Date(k.created_at).toLocaleDateString()}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => setRevokeTarget(k.id)}
+                    sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+            </Paper>
+          ))}
+
+          <Box sx={{ display: "flex", gap: 1, mt: 2, alignItems: "flex-end" }}>
+            <TextField
+              label="Key name"
+              size="small"
+              value={keyName}
+              onChange={(e) => setKeyName(e.target.value)}
+              sx={{ flex: 1 }}
+            />
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Scope</InputLabel>
+              <Select
+                value={selectedScope}
+                label="Scope"
+                onChange={(e) => setSelectedScope(e.target.value)}
+              >
+                {scopes.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              startIcon={<KeyIcon />}
+              onClick={handleGenerate}
+              disabled={loading || !selectedScope}
+            >
+              Generate
+            </Button>
+          </Box>
+
+          {scopes.length === 0 && !loading && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Create a root folder in Documents first — root folders serve as
+              scopes for API keys.
+            </Alert>
+          )}
+        </Box>
+
+        {/* Card 2: MCP Configuration */}
+        <Box
+          sx={{
+            bgcolor: alpha("#1a1a28", 0.6),
+            border: 1,
+            borderColor: alpha("#ffffff", 0.06),
+            borderRadius: 4,
+            p: 3,
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Connect MCP Client
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 2, color: alpha("#ffffff", 0.6) }}
+          >
+            Add this to your MCP client configuration (e.g.,{" "}
+            <code>.mcp.json</code> for Claude Code):
+          </Typography>
+          <Paper
+            sx={{
+              p: 2,
+              bgcolor: alpha("#000000", 0.3),
+              border: 1,
+              borderColor: alpha("#ffffff", 0.08),
+              fontFamily: "monospace",
+              fontSize: "0.8rem",
+              whiteSpace: "pre",
+              overflow: "auto",
+            }}
+          >
+            {`{
   "mcpServers": {
     "agentic-rag": {
       "type": "sse",
@@ -300,23 +307,24 @@ export default function SettingsPage() {
     }
   }
 }`}
-        </Paper>
-
-        <Dialog open={!!revokeTarget} onClose={() => setRevokeTarget(null)}>
-          <DialogTitle>Revoke API Key</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              This will immediately disconnect any MCP clients using this key.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setRevokeTarget(null)}>Cancel</Button>
-            <Button onClick={handleRevoke} color="error" variant="contained">
-              Revoke
-            </Button>
-          </DialogActions>
-        </Dialog>
+          </Paper>
+        </Box>
       </Box>
+
+      <Dialog open={!!revokeTarget} onClose={() => setRevokeTarget(null)}>
+        <DialogTitle>Revoke API Key</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will immediately disconnect any MCP clients using this key.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevokeTarget(null)}>Cancel</Button>
+          <Button onClick={handleRevoke} color="error" variant="contained">
+            Revoke
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -51,7 +51,7 @@ const NAV_ITEMS: {
 
 export default function IconRail({
   activePage,
-  panelOpen,
+  panelOpen: _panelOpen,
   onNavigate,
   onTogglePanel,
   userEmail,

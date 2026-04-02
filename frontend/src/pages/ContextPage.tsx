@@ -24,10 +24,8 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MemoryIcon from "@mui/icons-material/Memory";
-import { useNavigate } from "react-router-dom";
 import {
   fetchContext,
   fetchRootFolders,
@@ -47,7 +45,6 @@ function timeUntil(dateStr: string): string {
 }
 
 export default function ContextPage() {
-  const navigate = useNavigate();
   const [entries, setEntries] = useState<ContextEntry[]>([]);
   const [scopes, setScopes] = useState<Folder[]>([]);
   const [selectedScope, setSelectedScope] = useState<string>("");
@@ -96,156 +93,145 @@ export default function ContextPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
-        bgcolor: "#0a0a12",
         display: "flex",
         flexDirection: "column",
+        flex: 1,
+        p: 3,
       }}
     >
-      <Box
-        sx={{
-          p: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <IconButton onClick={() => navigate("/")} size="small">
-          <ArrowBackIcon />
-        </IconButton>
-        <MemoryIcon sx={{ color: "#6366f1" }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+        <MemoryIcon sx={{ color: "#7c3aed" }} />
         <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 }}>
           Context
         </Typography>
       </Box>
 
-      <Box sx={{ p: 3, maxWidth: 900, mx: "auto", width: "100%" }}>
-        <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
-          <InputLabel>Filter by scope</InputLabel>
-          <Select
-            value={selectedScope}
-            label="Filter by scope"
-            onChange={(e) => setSelectedScope(e.target.value)}
-          >
-            <MenuItem value="">All scopes</MenuItem>
-            {scopes.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
+        <InputLabel>Filter by scope</InputLabel>
+        <Select
+          value={selectedScope}
+          label="Filter by scope"
+          onChange={(e) => setSelectedScope(e.target.value)}
+        >
+          <MenuItem value="">All scopes</MenuItem>
+          {scopes.map((s) => (
+            <MenuItem key={s.id} value={s.id}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
-        {selectedScope && entries.length > 0 && (
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            sx={{ mb: 2 }}
-            onClick={async () => {
-              try {
-                await clearAllContext(selectedScope);
-                setEntries([]);
-              } catch {
-                setError("Failed to clear context.");
-              }
-            }}
-          >
-            Clear all for this scope
-          </Button>
-        )}
+      {selectedScope && entries.length > 0 && (
+        <Button
+          variant="outlined"
+          color="error"
+          size="small"
+          sx={{ mb: 2 }}
+          onClick={async () => {
+            try {
+              await clearAllContext(selectedScope);
+              setEntries([]);
+            } catch {
+              setError("Failed to clear context.");
+            }
+          }}
+        >
+          Clear all for this scope
+        </Button>
+      )}
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
-        {!loading && entries.length === 0 && (
-          <Paper
-            sx={{
-              p: 4,
-              textAlign: "center",
-              bgcolor: alpha("#ffffff", 0.02),
-            }}
-          >
-            <Typography variant="body2" sx={{ color: alpha("#ffffff", 0.5) }}>
-              No active context entries. Context is managed by Claude during MCP
-              sessions.
-            </Typography>
-          </Paper>
-        )}
+      {!loading && entries.length === 0 && (
+        <Paper
+          sx={{
+            p: 4,
+            textAlign: "center",
+            bgcolor: alpha("#ffffff", 0.02),
+          }}
+        >
+          <Typography variant="body2" sx={{ color: alpha("#ffffff", 0.5) }}>
+            No active context entries. Context is managed by Claude during MCP
+            sessions.
+          </Typography>
+        </Paper>
+      )}
 
-        {entries.length > 0 && (
-          <TableContainer
-            component={Paper}
-            sx={{ bgcolor: alpha("#ffffff", 0.03) }}
-          >
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Key</TableCell>
-                  <TableCell>Value</TableCell>
-                  <TableCell>Scope</TableCell>
-                  <TableCell>Expires</TableCell>
-                  <TableCell width={50} />
+      {entries.length > 0 && (
+        <TableContainer
+          component={Paper}
+          sx={{ bgcolor: alpha("#ffffff", 0.03) }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Key</TableCell>
+                <TableCell>Value</TableCell>
+                <TableCell>Scope</TableCell>
+                <TableCell>Expires</TableCell>
+                <TableCell width={50} />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow
+                  key={entry.id}
+                  sx={{ "&:hover": { bgcolor: alpha("#7c3aed", 0.05) } }}
+                >
+                  <TableCell>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 500, fontFamily: "monospace" }}
+                    >
+                      {entry.key}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: alpha("#ffffff", 0.7),
+                        maxWidth: 400,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {entry.value}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={getScopeName(entry.root_folder_id)}
+                      size="small"
+                      sx={{ height: 20, fontSize: "0.7rem" }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="caption">
+                      {timeUntil(entry.expires_at)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => setDeleteConfirm(entry.id)}
+                      sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontWeight: 500, fontFamily: "monospace" }}
-                      >
-                        {entry.key}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: alpha("#ffffff", 0.7),
-                          maxWidth: 400,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {entry.value}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getScopeName(entry.root_folder_id)}
-                        size="small"
-                        sx={{ height: 20, fontSize: "0.7rem" }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption">
-                        {timeUntil(entry.expires_at)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => setDeleteConfirm(entry.id)}
-                        sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Box>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Delete Context Entry</DialogTitle>

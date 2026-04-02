@@ -21,11 +21,9 @@ import {
   DialogActions,
   Button,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import NoteIcon from "@mui/icons-material/StickyNote2";
-import { useNavigate } from "react-router-dom";
 import {
   fetchNotes,
   fetchRootFolders,
@@ -35,7 +33,6 @@ import {
 } from "../lib/api";
 
 export default function NotesPage() {
-  const navigate = useNavigate();
   const [notes, setNotes] = useState<Note[]>([]);
   const [scopes, setScopes] = useState<Folder[]>([]);
   const [selectedScope, setSelectedScope] = useState<string>("");
@@ -84,124 +81,110 @@ export default function NotesPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
-        bgcolor: "#0a0a12",
         display: "flex",
         flexDirection: "column",
+        flex: 1,
+        p: 3,
       }}
     >
-      <Box
-        sx={{
-          p: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <IconButton onClick={() => navigate("/")} size="small">
-          <ArrowBackIcon />
-        </IconButton>
-        <NoteIcon sx={{ color: "#6366f1" }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+        <NoteIcon sx={{ color: "#7c3aed" }} />
         <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 }}>
           Notes
         </Typography>
       </Box>
 
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto", width: "100%" }}>
-        <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
-          <InputLabel>Filter by scope</InputLabel>
-          <Select
-            value={selectedScope}
-            label="Filter by scope"
-            onChange={(e) => setSelectedScope(e.target.value)}
-          >
-            <MenuItem value="">All scopes</MenuItem>
-            {scopes.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
+        <InputLabel>Filter by scope</InputLabel>
+        <Select
+          value={selectedScope}
+          label="Filter by scope"
+          onChange={(e) => setSelectedScope(e.target.value)}
+        >
+          <MenuItem value="">All scopes</MenuItem>
+          {scopes.map((s) => (
+            <MenuItem key={s.id} value={s.id}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
-        {!loading && notes.length === 0 && (
-          <Paper
-            sx={{
-              p: 4,
-              textAlign: "center",
-              bgcolor: alpha("#ffffff", 0.02),
-            }}
-          >
-            <Typography variant="body2" sx={{ color: alpha("#ffffff", 0.5) }}>
-              No notes yet. Notes are created by Claude during MCP sessions.
-            </Typography>
-          </Paper>
-        )}
+      {!loading && notes.length === 0 && (
+        <Paper
+          sx={{
+            p: 4,
+            textAlign: "center",
+            bgcolor: alpha("#ffffff", 0.02),
+          }}
+        >
+          <Typography variant="body2" sx={{ color: alpha("#ffffff", 0.5) }}>
+            No notes yet. Notes are created by Claude during MCP sessions.
+          </Typography>
+        </Paper>
+      )}
 
-        {notes.map((note) => (
-          <Accordion
-            key={note.id}
-            sx={{
-              bgcolor: alpha("#ffffff", 0.03),
-              mb: 1,
-              "&:before": { display: "none" },
-            }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  flex: 1,
-                  mr: 1,
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
-                  {note.title}
-                </Typography>
-                <Chip
-                  label={getScopeName(note.root_folder_id)}
-                  size="small"
-                  sx={{ height: 20, fontSize: "0.7rem" }}
-                />
-                <Typography
-                  variant="caption"
-                  sx={{ color: alpha("#ffffff", 0.4) }}
-                >
-                  {new Date(note.created_at).toLocaleDateString()}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteConfirm(note.id);
-                  }}
-                  sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography
-                variant="body2"
-                sx={{ color: alpha("#ffffff", 0.7), whiteSpace: "pre-wrap" }}
-              >
-                {note.content}
+      {notes.map((note) => (
+        <Accordion
+          key={note.id}
+          sx={{
+            bgcolor: alpha("#ffffff", 0.03),
+            mb: 1,
+            "&:before": { display: "none" },
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flex: 1,
+                mr: 1,
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
+                {note.title}
               </Typography>
-            </AccordionDetails>
-          </Accordion>
-        ))}
-      </Box>
+              <Chip
+                label={getScopeName(note.root_folder_id)}
+                size="small"
+                sx={{ height: 20, fontSize: "0.7rem" }}
+              />
+              <Typography
+                variant="caption"
+                sx={{ color: alpha("#ffffff", 0.4) }}
+              >
+                {new Date(note.created_at).toLocaleDateString()}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteConfirm(note.id);
+                }}
+                sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography
+              variant="body2"
+              sx={{ color: alpha("#ffffff", 0.7), whiteSpace: "pre-wrap" }}
+            >
+              {note.content}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+      ))}
 
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
         <DialogTitle>Delete Note</DialogTitle>
