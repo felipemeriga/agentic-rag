@@ -78,8 +78,8 @@ function FolderTreeNode({
           mx: 0.5,
           mb: 0.25,
           "&.Mui-selected": {
-            bgcolor: alpha("#6366f1", 0.15),
-            "&:hover": { bgcolor: alpha("#6366f1", 0.2) },
+            bgcolor: alpha("#7c3aed", 0.15),
+            "&:hover": { bgcolor: alpha("#7c3aed", 0.2) },
           },
           "&:hover": {
             bgcolor: alpha("#ffffff", 0.04),
@@ -100,9 +100,9 @@ function FolderTreeNode({
         </IconButton>
         <ListItemIcon sx={{ minWidth: 28 }}>
           {open ? (
-            <FolderOpenIcon sx={{ fontSize: 18, color: "#6366f1" }} />
+            <FolderOpenIcon sx={{ fontSize: 18, color: "#7c3aed" }} />
           ) : (
-            <FolderIcon sx={{ fontSize: 18, color: "#6366f1" }} />
+            <FolderIcon sx={{ fontSize: 18, color: "#7c3aed" }} />
           )}
         </ListItemIcon>
         <ListItemText
@@ -172,8 +172,8 @@ export default function FolderTree({
           mb: 0.25,
           pl: 1.5,
           "&.Mui-selected": {
-            bgcolor: alpha("#6366f1", 0.15),
-            "&:hover": { bgcolor: alpha("#6366f1", 0.2) },
+            bgcolor: alpha("#7c3aed", 0.15),
+            "&:hover": { bgcolor: alpha("#7c3aed", 0.2) },
           },
           "&:hover": { bgcolor: alpha("#ffffff", 0.04) },
         }}

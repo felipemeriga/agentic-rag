@@ -124,7 +124,13 @@ export async function streamChat(
 
     for (const line of lines) {
       if (line.startsWith("data: ")) {
-        const data = JSON.parse(line.slice(6));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any;
+        try {
+          data = JSON.parse(line.slice(6));
+        } catch {
+          continue;
+        }
         if (data.done) {
           onDone();
           return;

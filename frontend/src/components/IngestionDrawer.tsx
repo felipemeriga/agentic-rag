@@ -63,7 +63,7 @@ const STAGE_CONFIGS: Record<IngestionStage, StageConfig> = {
   completed: {
     label: "Done",
     icon: <CheckCircleIcon sx={{ fontSize: 16 }} />,
-    color: "#22c55e",
+    color: "#10b981",
   },
   error: {
     label: "Error",
@@ -110,7 +110,7 @@ function StageIndicator({ currentStage }: { currentStage: IngestionStage }) {
               bgcolor: isDone
                 ? isTerminal
                   ? STAGE_CONFIGS[currentStage].color
-                  : "#22c55e"
+                  : "#10b981"
                 : isActive
                 ? "#7c3aed"
                 : alpha("#ffffff", 0.15),
