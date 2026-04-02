@@ -64,6 +64,8 @@ def stream_rag_response(
     full_response = ""
     max_rounds = 10
 
+    yield f"data: {json.dumps({'stage': 'searching'})}\n\n"
+
     for _ in range(max_rounds):
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
@@ -91,9 +93,20 @@ def stream_rag_response(
                     )
 
             messages.append({"role": "user", "content": tool_results})
+
+            # Count document results from tool calls
+            doc_count = 0
+            for tr in tool_results:
+                content = tr.get("content", "")
+                if isinstance(content, str):
+                    doc_count += content.count("Source:")
+            yield f"data: {json.dumps({'stage': 'analyzing', 'docs': doc_count})}\n\n"
+
             continue
 
-        # Claude is done with tools — extract the final text response
+        # Claude is done with tools — stream the final text response
+        yield f"data: {json.dumps({'stage': 'generating'})}\n\n"
+
         for block in response.content:
             if hasattr(block, "text"):
                 full_response += block.text
@@ -101,6 +114,7 @@ def stream_rag_response(
         break
     else:
         # Exhausted max rounds
+        yield f"data: {json.dumps({'stage': 'generating'})}\n\n"
         full_response = "I was unable to complete the request after multiple attempts."
         yield f"data: {json.dumps({'token': full_response})}\n\n"
 
