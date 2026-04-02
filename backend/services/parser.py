@@ -1,6 +1,7 @@
 """Extract text from documents using Docling."""
 
 import base64
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -14,11 +15,23 @@ from langsmith.wrappers import wrap_anthropic
 
 PLAIN_TEXT_EXTENSIONS = {".json", ".yaml", ".yml", ".txt", ".text"}
 
+logger = logging.getLogger(__name__)
+
+
+def _strip_image_markers(text: str) -> str:
+    """Remove <!-- image --> markers and blank lines to check for real text content."""
+    lines = text.splitlines()
+    return "".join(
+        line.strip() for line in lines if line.strip() and line.strip() != "<!-- image -->"
+    )
+
 
 def parse_document(file_bytes: bytes, filename: str) -> str:
     """Extract text content from a document file.
 
     Uses Docling for PDF, DOCX, HTML, Markdown.
+    For PDFs, tries text extraction first (no OCR), then falls back to OCR
+    if no meaningful text is found.
     Reads JSON, YAML, and plain text directly.
     Returns extracted text as a string.
     """
@@ -32,15 +45,34 @@ def parse_document(file_bytes: bytes, filename: str) -> str:
         tmp_path = tmp.name
 
     try:
-        format_options = {}
         if suffix == ".pdf":
-            pdf_options = PdfPipelineOptions(do_ocr=False, do_table_structure=False)
-            format_options[InputFormat.PDF] = PdfFormatOption(pipeline_options=pdf_options)
-        converter = DocumentConverter(format_options=format_options)
+            return _parse_pdf(tmp_path)
+        converter = DocumentConverter()
         result = converter.convert(tmp_path)
         return result.document.export_to_markdown()
     finally:
         Path(tmp_path).unlink(missing_ok=True)
+
+
+def _parse_pdf(tmp_path: str) -> str:
+    """Parse PDF: try text extraction first, fall back to OCR if no text found."""
+    # First pass: text-only, no OCR, no table structure (fast)
+    pdf_options = PdfPipelineOptions(do_ocr=False, do_table_structure=False)
+    converter = DocumentConverter(
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_options)}
+    )
+    result = converter.convert(tmp_path)
+    text = result.document.export_to_markdown()
+
+    if _strip_image_markers(text):
+        logger.info("PDF parsed successfully with text extraction (no OCR needed)")
+        return text
+
+    # Second pass: full pipeline with OCR for scanned/image-based PDFs
+    logger.info("No text found in PDF, falling back to OCR")
+    converter = DocumentConverter()
+    result = converter.convert(tmp_path)
+    return result.document.export_to_markdown()
 
 
 IMAGE_EXTRACTION_PROMPT = (
