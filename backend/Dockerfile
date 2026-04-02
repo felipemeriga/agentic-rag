@@ -14,7 +14,8 @@ RUN echo "APT::Sandbox::User \"root\";" > /etc/apt/apt.conf.d/99-sandbox-disable
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates curl \
-        libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1 libx11-6 && \
+        libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1 libx11-6 \
+        libgomp1 libjpeg62-turbo libtiff6 libwebp7 libfreetype6 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
