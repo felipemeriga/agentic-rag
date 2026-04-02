@@ -36,7 +36,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <Box sx={{ display: "flex", height: "100vh" }}>
       <IconRail
         activePage={activePage}
-        panelOpen={panelOpen}
         onNavigate={(page) => navigate(page)}
         onTogglePanel={() => setPanelOpen((prev) => !prev)}
         userEmail={user?.email}

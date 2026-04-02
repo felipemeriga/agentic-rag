@@ -6,7 +6,6 @@ import IconRail from "./IconRail";
 
 const defaultProps = {
   activePage: "/" as const,
-  panelOpen: true,
   onNavigate: vi.fn(),
   onTogglePanel: vi.fn(),
   userEmail: "test@example.com",

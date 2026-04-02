@@ -10,7 +10,6 @@ export type AppPage = "/" | "/documents" | "/notes" | "/context" | "/settings";
 
 interface IconRailProps {
   activePage: AppPage;
-  panelOpen: boolean;
   onNavigate: (page: AppPage) => void;
   onTogglePanel: () => void;
   userEmail: string | undefined;
@@ -51,7 +50,6 @@ const NAV_ITEMS: {
 
 export default function IconRail({
   activePage,
-  panelOpen: _panelOpen,
   onNavigate,
   onTogglePanel,
   userEmail,
