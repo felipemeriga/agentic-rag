@@ -141,10 +141,34 @@ export interface DocumentInfo {
 }
 
 export interface UploadResult {
+  task_id: string;
+}
+
+export type IngestionStage =
+  | "uploading"
+  | "parsing"
+  | "chunking"
+  | "extracting_metadata"
+  | "embedding"
+  | "storing"
+  | "completed"
+  | "error"
+  | "duplicate";
+
+export interface IngestionTask {
+  id: string;
+  user_id: string;
   filename: string;
+  folder_id: string | null;
+  stage: IngestionStage;
+  stage_detail: string | null;
+  error_message: string | null;
+  chunks_total: number | null;
+  chunks_done: number;
   duplicate: boolean;
-  chunks: number;
   document_ids: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export async function fetchDocuments(
@@ -200,6 +224,11 @@ export async function downloadDocument(filename: string): Promise<string> {
   );
   const data = await res.json();
   return data.url;
+}
+
+export async function fetchIngestionStatus(): Promise<IngestionTask[]> {
+  const res = await apiFetch("/api/documents/ingestion-status");
+  return res.json();
 }
 
 // --- Folders ---

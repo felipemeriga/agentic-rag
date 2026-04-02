@@ -228,3 +228,32 @@ create index idx_context_expires on context(expires_at);
 create trigger context_updated_at
   before update on context
   for each row execute function update_updated_at();
+
+-- Ingestion status tracking for background processing
+create table ingestion_status (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  filename text not null,
+  folder_id uuid references folders(id) on delete set null,
+  stage text not null default 'uploading'
+    check (stage in ('uploading', 'parsing', 'chunking', 'extracting_metadata', 'embedding', 'storing', 'completed', 'error', 'duplicate')),
+  stage_detail text,
+  error_message text,
+  chunks_total int,
+  chunks_done int default 0,
+  duplicate boolean default false,
+  document_ids jsonb default '[]'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table ingestion_status enable row level security;
+
+create policy "Users see own ingestion status"
+  on ingestion_status for all
+  using (user_id = auth.uid()::text)
+  with check (user_id = auth.uid()::text);
+
+create trigger ingestion_status_updated_at
+  before update on ingestion_status
+  for each row execute function update_updated_at();
