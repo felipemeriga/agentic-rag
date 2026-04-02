@@ -67,6 +67,13 @@ export interface ChatFilters {
   keyword?: string;
 }
 
+export type ChatStage = "searching" | "analyzing" | "generating";
+
+export interface StageEvent {
+  stage: ChatStage;
+  docs?: number;
+}
+
 export interface DocumentFilters {
   topics: string[];
   keywords: string[];
@@ -82,7 +89,8 @@ export async function streamChat(
   content: string,
   onToken: (token: string) => void,
   onDone: () => void,
-  filters?: ChatFilters
+  filters?: ChatFilters,
+  onStage?: (event: StageEvent) => void
 ): Promise<void> {
   const headers = await getAuthHeaders();
   const response = await fetch("/api/chat", {
@@ -120,6 +128,9 @@ export async function streamChat(
         if (data.done) {
           onDone();
           return;
+        }
+        if (data.stage && onStage) {
+          onStage({ stage: data.stage, docs: data.docs });
         }
         if (data.token) {
           onToken(data.token);
