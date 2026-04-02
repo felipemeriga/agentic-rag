@@ -1,11 +1,14 @@
 """Document upload, list, delete, and move endpoints."""
 
+import asyncio
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from auth import get_current_user
 from db.client import get_supabase
-from services.ingestion import ingest_document
+from services.ingestion import run_ingestion_background
 from services.scope import resolve_root_folder_id
 
 router = APIRouter(prefix="/api/documents")
@@ -57,7 +60,7 @@ async def upload_document(
     folder_id: str | None = None,
     user_id: str = Depends(get_current_user),
 ):
-    """Upload a document for ingestion. Supports PDF, DOCX, HTML, Markdown, and text."""
+    """Upload a document for background ingestion. Returns task_id immediately."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
@@ -91,16 +94,64 @@ async def upload_document(
             detail=f"Document too large ({len(file_bytes) // 1024 // 1024}MB). Max is 50MB.",
         )
 
-    result = ingest_document(
-        file_bytes=file_bytes, filename=file.filename, user_id=user_id, folder_id=folder_id
+    # Create ingestion_status row
+    sb = get_supabase()
+    row = (
+        sb.table("ingestion_status")
+        .insert(
+            {
+                "user_id": user_id,
+                "filename": file.filename,
+                "folder_id": folder_id,
+                "stage": "uploading",
+            }
+        )
+        .execute()
+    )
+    status_id = row.data[0]["id"]
+
+    # Dispatch background task
+    asyncio.create_task(
+        run_ingestion_background(
+            file_bytes=file_bytes,
+            filename=file.filename,
+            user_id=user_id,
+            folder_id=folder_id,
+            status_id=status_id,
+        )
     )
 
-    return {
-        "filename": file.filename,
-        "duplicate": result["duplicate"],
-        "chunks": result["chunks"],
-        "document_ids": result["document_ids"],
-    }
+    return {"task_id": status_id}
+
+
+@router.get("/ingestion-status")
+async def get_ingestion_status(user_id: str = Depends(get_current_user)):
+    """Return active and recently completed ingestion tasks for the user."""
+    sb = get_supabase()
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+
+    # Get active tasks (not in terminal state)
+    active = (
+        sb.table("ingestion_status")
+        .select("*")
+        .eq("user_id", user_id)
+        .not_.in_("stage", ["completed", "error", "duplicate"])
+        .execute()
+    )
+
+    # Get recently finished tasks
+    finished = (
+        sb.table("ingestion_status")
+        .select("*")
+        .eq("user_id", user_id)
+        .in_("stage", ["completed", "error", "duplicate"])
+        .gte("updated_at", cutoff)
+        .execute()
+    )
+
+    tasks = active.data + finished.data
+    tasks.sort(key=lambda t: t["created_at"])
+    return tasks
 
 
 @router.get("")
