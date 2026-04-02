@@ -3,10 +3,6 @@ import {
   Box,
   Typography,
   Button,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   IconButton,
   Alert,
   Dialog,
@@ -16,25 +12,17 @@ import {
   DialogActions,
   TextField,
   alpha,
-  Chip,
   Paper,
   Badge,
   Tooltip,
-  Divider,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
-import DownloadIcon from "@mui/icons-material/Download";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import FolderIcon from "@mui/icons-material/Folder";
 import MicIcon from "@mui/icons-material/Mic";
 import StopIcon from "@mui/icons-material/Stop";
-import { useNavigate } from "react-router-dom";
 import { useDocuments } from "../hooks/useDocuments";
 import { useIngestionStatus } from "../hooks/useIngestionStatus";
 import {
@@ -43,7 +31,7 @@ import {
   deleteFolder,
   downloadDocument,
 } from "../lib/api";
-import FolderTree from "../components/FolderTree";
+import DocumentCard from "../components/DocumentCard";
 import IngestionDrawer from "../components/IngestionDrawer";
 
 const ACCEPTED_TYPES =
@@ -54,10 +42,7 @@ const pulse = keyframes`
   50% { opacity: 0.5; transform: scale(1.15); }
   100% { opacity: 1; transform: scale(1); }
 `;
-const SIDEBAR_WIDTH = 260;
-
 export default function DocumentsPage() {
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -71,7 +56,6 @@ export default function DocumentsPage() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [folderTreeKey, setFolderTreeKey] = useState(0);
 
   // Folder drag-over for file grid area
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -221,7 +205,6 @@ export default function DocumentsPage() {
     await createFolder(newFolderName.trim(), currentFolderId);
     setNewFolderName("");
     setNewFolderOpen(false);
-    setFolderTreeKey((k) => k + 1);
     loadSubFolders();
   };
 
@@ -239,7 +222,6 @@ export default function DocumentsPage() {
       if (currentFolderId === deleteConfirm.id) {
         setCurrentFolderId(null);
       }
-      setFolderTreeKey((k) => k + 1);
       loadSubFolders();
     } else {
       await remove(deleteConfirm.name);
@@ -260,82 +242,14 @@ export default function DocumentsPage() {
     subFolders.length === 0 && documents.length === 0 && !hasActiveTasks;
 
   return (
-    <Box sx={{ display: "flex", height: "100vh" }}>
-      {/* Sidebar */}
-      <Box
-        sx={{
-          width: SIDEBAR_WIDTH,
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          borderRight: 1,
-          borderColor: "divider",
-          bgcolor: alpha("#0d0d15", 0.8),
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        {/* Sidebar Header */}
-        <Box
-          sx={{
-            p: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          <IconButton size="small" onClick={() => navigate("/")}>
-            <ArrowBackIcon fontSize="small" />
-          </IconButton>
-          <Typography
-            variant="subtitle1"
-            sx={{
-              fontWeight: 700,
-              background: "linear-gradient(135deg, #6366f1, #818cf8)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              flex: 1,
-            }}
-          >
-            Documents
-          </Typography>
-        </Box>
-        <Divider />
-
-        {/* Folder Tree */}
-        <Box sx={{ flex: 1, overflow: "auto" }}>
-          <FolderTree
-            key={folderTreeKey}
-            selectedFolderId={currentFolderId}
-            onSelectFolder={setCurrentFolderId}
-            onRequestDelete={handleRequestDeleteFolder}
-          />
-        </Box>
-
-        <Divider />
-        {/* Sidebar Actions */}
-        <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          <Button
-            fullWidth
-            variant="outlined"
-            size="small"
-            startIcon={<CreateNewFolderIcon />}
-            onClick={() => setNewFolderOpen(true)}
-          >
-            New Folder
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Main Content */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
         {/* Toolbar */}
         <Box
           sx={{
@@ -403,19 +317,19 @@ export default function DocumentsPage() {
               mb: 3,
               textAlign: "center",
               bgcolor: dragOver
-                ? alpha("#6366f1", 0.08)
+                ? alpha("#7c3aed", 0.08)
                 : alpha("#1a1a2e", 0.2),
               transition: "all 0.2s ease-in-out",
               cursor: "pointer",
               "&:hover": {
-                borderColor: alpha("#6366f1", 0.3),
-                bgcolor: alpha("#6366f1", 0.04),
+                borderColor: alpha("#7c3aed", 0.3),
+                bgcolor: alpha("#7c3aed", 0.04),
               },
             }}
             onClick={() => fileInputRef.current?.click()}
           >
             <CloudUploadIcon
-              sx={{ fontSize: 32, color: alpha("#6366f1", 0.4), mb: 0.5 }}
+              sx={{ fontSize: 32, color: alpha("#7c3aed", 0.4), mb: 0.5 }}
             />
             <Typography color="text.secondary" variant="body2">
               Drop files here or click to browse
@@ -437,15 +351,15 @@ export default function DocumentsPage() {
                 sx={{
                   bgcolor: isRecording
                     ? alpha("#ef4444", 0.2)
-                    : alpha("#6366f1", 0.1),
+                    : alpha("#7c3aed", 0.1),
                   border: `1px solid ${
-                    isRecording ? alpha("#ef4444", 0.5) : alpha("#6366f1", 0.25)
+                    isRecording ? alpha("#ef4444", 0.5) : alpha("#7c3aed", 0.25)
                   }`,
-                  color: isRecording ? "#ef4444" : alpha("#6366f1", 0.7),
+                  color: isRecording ? "#ef4444" : alpha("#7c3aed", 0.7),
                   "&:hover": {
                     bgcolor: isRecording
                       ? alpha("#ef4444", 0.3)
-                      : alpha("#6366f1", 0.2),
+                      : alpha("#7c3aed", 0.2),
                   },
                 }}
               >
@@ -550,18 +464,18 @@ export default function DocumentsPage() {
                       overflow: "hidden",
                       bgcolor:
                         dragOverFolderId === folder.id
-                          ? alpha("#6366f1", 0.12)
+                          ? alpha("#7c3aed", 0.12)
                           : alpha("#1a1a2e", 0.4),
                       border: `1px solid ${
                         dragOverFolderId === folder.id
-                          ? alpha("#6366f1", 0.5)
+                          ? alpha("#7c3aed", 0.5)
                           : alpha("#ffffff", 0.04)
                       }`,
                       transition: "all 0.15s ease",
                       "&:hover": {
                         transform: "translateY(-1px)",
-                        borderColor: alpha("#6366f1", 0.25),
-                        boxShadow: `0 4px 16px ${alpha("#6366f1", 0.1)}`,
+                        borderColor: alpha("#7c3aed", 0.25),
+                        boxShadow: `0 4px 16px ${alpha("#7c3aed", 0.1)}`,
                         "& .folder-card-delete": { opacity: 1 },
                       },
                     }}
@@ -587,7 +501,7 @@ export default function DocumentsPage() {
                     >
                       <DeleteIcon sx={{ fontSize: 14 }} />
                     </IconButton>
-                    <FolderIcon sx={{ fontSize: 36, color: "#6366f1" }} />
+                    <FolderIcon sx={{ fontSize: 36, color: "#7c3aed" }} />
                     <Typography
                       variant="caption"
                       noWrap
@@ -605,7 +519,7 @@ export default function DocumentsPage() {
             </Box>
           )}
 
-          {/* Documents list */}
+          {/* Documents grid */}
           {documents.length > 0 && (
             <Box>
               <Typography
@@ -621,120 +535,28 @@ export default function DocumentsPage() {
               >
                 Files
               </Typography>
-              <List disablePadding>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: 1.5,
+                }}
+              >
                 {documents.map((doc) => (
-                  <ListItem
+                  <DocumentCard
                     key={doc.source_filename}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData(
-                        "application/x-document-filename",
-                        doc.source_filename
-                      );
-                      e.dataTransfer.effectAllowed = "move";
+                    doc={doc}
+                    onDelete={(filename) => {
+                      setDeleteConfirm({
+                        type: "document",
+                        id: filename,
+                        name: filename,
+                      });
                     }}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.5,
-                      py: 0.75,
-                      bgcolor: alpha("#1a1a2e", 0.25),
-                      border: `1px solid ${alpha("#ffffff", 0.03)}`,
-                      cursor: "grab",
-                      "&:active": { cursor: "grabbing" },
-                      "&:hover": {
-                        bgcolor: alpha("#1a1a2e", 0.45),
-                        borderColor: alpha("#ffffff", 0.06),
-                      },
-                      transition: "all 0.15s ease",
-                    }}
-                    secondaryAction={
-                      <Box sx={{ display: "flex", gap: 0.5 }}>
-                        {doc.has_file && (
-                          <Tooltip title="Download original file">
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                handleDownload(doc.source_filename)
-                              }
-                              sx={{
-                                opacity: 0.4,
-                                "&:hover": { opacity: 1 },
-                              }}
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          onClick={() =>
-                            setDeleteConfirm({
-                              type: "document",
-                              id: doc.source_filename,
-                              name: doc.source_filename,
-                            })
-                          }
-                          sx={{
-                            opacity: 0.4,
-                            "&:hover": { opacity: 1 },
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    }
-                  >
-                    <ListItemIcon sx={{ minWidth: 48, gap: 0.5 }}>
-                      <DragIndicatorIcon
-                        sx={{
-                          fontSize: 14,
-                          color: alpha("#ffffff", 0.15),
-                        }}
-                      />
-                      <InsertDriveFileIcon
-                        sx={{
-                          fontSize: 18,
-                          color: alpha("#ffffff", 0.35),
-                        }}
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                          }}
-                        >
-                          <Typography variant="body2" noWrap>
-                            {doc.source_filename}
-                          </Typography>
-                          {doc.status !== "completed" && (
-                            <Chip
-                              label={doc.status}
-                              size="small"
-                              color={
-                                doc.status === "processing" ? "info" : "error"
-                              }
-                            />
-                          )}
-                        </Box>
-                      }
-                      secondary={
-                        <Typography
-                          variant="caption"
-                          sx={{ color: alpha("#ffffff", 0.3) }}
-                        >
-                          {doc.chunks} chunks ·{" "}
-                          {new Date(doc.created_at).toLocaleDateString()}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
+                    onDownload={handleDownload}
+                  />
                 ))}
-              </List>
+              </Box>
             </Box>
           )}
 
@@ -752,7 +574,6 @@ export default function DocumentsPage() {
             </Box>
           )}
         </Box>
-      </Box>
 
       {/* New Folder Dialog */}
       <Dialog
