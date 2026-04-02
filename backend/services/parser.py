@@ -6,7 +6,9 @@ import tempfile
 from pathlib import Path
 
 import anthropic
-from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from langsmith import traceable
 from langsmith.wrappers import wrap_anthropic
 
@@ -30,7 +32,11 @@ def parse_document(file_bytes: bytes, filename: str) -> str:
         tmp_path = tmp.name
 
     try:
-        converter = DocumentConverter()
+        format_options = {}
+        if suffix == ".pdf":
+            pdf_options = PdfPipelineOptions(do_ocr=False, do_table_structure=False)
+            format_options[InputFormat.PDF] = PdfFormatOption(pipeline_options=pdf_options)
+        converter = DocumentConverter(format_options=format_options)
         result = converter.convert(tmp_path)
         return result.document.export_to_markdown()
     finally:
