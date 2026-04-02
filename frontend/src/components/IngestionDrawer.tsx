@@ -33,32 +33,32 @@ const STAGE_CONFIGS: Record<IngestionStage, StageConfig> = {
   uploading: {
     label: "Uploading",
     icon: <CloudUploadIcon sx={{ fontSize: 16 }} />,
-    color: "#6366f1",
+    color: "#7c3aed",
   },
   parsing: {
     label: "Parsing",
     icon: <DescriptionIcon sx={{ fontSize: 16 }} />,
-    color: "#6366f1",
+    color: "#7c3aed",
   },
   chunking: {
     label: "Chunking",
     icon: <ContentCutIcon sx={{ fontSize: 16 }} />,
-    color: "#6366f1",
+    color: "#7c3aed",
   },
   extracting_metadata: {
     label: "Metadata",
     icon: <LabelIcon sx={{ fontSize: 16 }} />,
-    color: "#6366f1",
+    color: "#7c3aed",
   },
   embedding: {
     label: "Embedding",
     icon: <MemoryIcon sx={{ fontSize: 16 }} />,
-    color: "#6366f1",
+    color: "#7c3aed",
   },
   storing: {
     label: "Storing",
     icon: <StorageIcon sx={{ fontSize: 16 }} />,
-    color: "#6366f1",
+    color: "#7c3aed",
   },
   completed: {
     label: "Done",
@@ -112,11 +112,11 @@ function StageIndicator({ currentStage }: { currentStage: IngestionStage }) {
                   ? STAGE_CONFIGS[currentStage].color
                   : "#22c55e"
                 : isActive
-                ? "#6366f1"
+                ? "#7c3aed"
                 : alpha("#ffffff", 0.15),
               transition: "all 0.3s",
               ...(isActive && {
-                boxShadow: `0 0 6px ${alpha("#6366f1", 0.6)}`,
+                boxShadow: `0 0 6px ${alpha("#7c3aed", 0.6)}`,
               }),
             }}
           />
@@ -240,7 +240,7 @@ export default function IngestionDrawer({
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <CloudUploadIcon sx={{ color: "#6366f1", fontSize: 20 }} />
+          <CloudUploadIcon sx={{ color: "#7c3aed", fontSize: 20 }} />
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Processing
             {activeCount > 0 && (
