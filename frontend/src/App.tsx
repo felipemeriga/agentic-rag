@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import DocumentsPage from "./pages/DocumentsPage";
@@ -18,7 +19,9 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <ChatPage />
+                <AppLayout>
+                  <ChatPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -26,7 +29,9 @@ function App() {
             path="/documents"
             element={
               <ProtectedRoute>
-                <DocumentsPage />
+                <AppLayout>
+                  <DocumentsPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -34,7 +39,9 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute>
-                <SettingsPage />
+                <AppLayout>
+                  <SettingsPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -42,7 +49,9 @@ function App() {
             path="/notes"
             element={
               <ProtectedRoute>
-                <NotesPage />
+                <AppLayout>
+                  <NotesPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -50,7 +59,9 @@ function App() {
             path="/context"
             element={
               <ProtectedRoute>
-                <ContextPage />
+                <AppLayout>
+                  <ContextPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />

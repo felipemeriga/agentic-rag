@@ -1,25 +1,16 @@
 import { useState, useRef } from "react";
-import { Box } from "@mui/material";
-import Sidebar from "../components/Sidebar";
 import ChatArea from "../components/ChatArea";
-import type { Message, ChatFilters } from "../lib/api";
+import type { Message, ChatFilters, StageEvent } from "../lib/api";
 import { streamChat } from "../lib/api";
 import { useConversations } from "../hooks/useConversations";
 
 export default function ChatPage() {
-  const {
-    conversations,
-    selectedId,
-    messages,
-    setMessages,
-    selectConversation,
-    loadConversations,
-    createConversation,
-    removeConversation,
-  } = useConversations();
+  const { selectedId, messages, setMessages, loadConversations } =
+    useConversations();
 
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [currentStage, setCurrentStage] = useState<StageEvent | null>(null);
   const streamingRef = useRef("");
 
   const handleSend = async (content: string, filters?: ChatFilters) => {
@@ -34,6 +25,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setIsStreaming(true);
     setStreamingContent("");
+    setCurrentStage(null);
     streamingRef.current = "";
 
     try {
@@ -41,6 +33,7 @@ export default function ChatPage() {
         selectedId,
         content,
         (token) => {
+          setCurrentStage(null);
           streamingRef.current += token;
           setStreamingContent(streamingRef.current);
         },
@@ -55,32 +48,27 @@ export default function ChatPage() {
           setStreamingContent("");
           streamingRef.current = "";
           setIsStreaming(false);
+          setCurrentStage(null);
           loadConversations();
         },
         filters,
+        (stage) => setCurrentStage(stage),
       );
     } catch {
       setIsStreaming(false);
       setStreamingContent("");
+      setCurrentStage(null);
       streamingRef.current = "";
     }
   };
 
   return (
-    <Box sx={{ display: "flex", height: "100vh" }}>
-      <Sidebar
-        conversations={conversations}
-        selectedId={selectedId}
-        onSelect={selectConversation}
-        onNew={createConversation}
-        onDelete={removeConversation}
-      />
-      <ChatArea
-        messages={messages}
-        streamingContent={streamingContent}
-        isStreaming={isStreaming}
-        onSend={handleSend}
-      />
-    </Box>
+    <ChatArea
+      messages={messages}
+      streamingContent={streamingContent}
+      isStreaming={isStreaming}
+      currentStage={currentStage}
+      onSend={handleSend}
+    />
   );
 }
