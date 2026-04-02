@@ -3,6 +3,8 @@
 import hashlib
 from pathlib import Path
 
+from storage3.exceptions import StorageApiError
+
 from db.client import get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
@@ -53,15 +55,26 @@ def check_duplicate(content_hash: str, user_id: str) -> bool:
     return len(result.data) > 0
 
 
+def _upload_to_bucket(bucket: str, storage_path: str, file_bytes: bytes, media_type: str) -> None:
+    """Upload to a Supabase Storage bucket, overwriting if the file already exists."""
+    sb = get_supabase()
+    try:
+        sb.storage.from_(bucket).upload(storage_path, file_bytes, {"content-type": media_type})
+    except StorageApiError as exc:
+        if str(exc.status) == "409":
+            sb.storage.from_(bucket).update(storage_path, file_bytes, {"content-type": media_type})
+        else:
+            raise
+
+
 def upload_image_to_storage(
     file_bytes: bytes, user_id: str, content_hash: str, filename: str
 ) -> str:
     """Upload raw image to Supabase Storage and return the path."""
     ext = Path(filename).suffix.lower().lstrip(".")
     storage_path = f"{user_id}/{content_hash}.{ext}"
-    sb = get_supabase()
     media_type = "image/png" if ext == "png" else "image/jpeg"
-    sb.storage.from_("images").upload(storage_path, file_bytes, {"content-type": media_type})
+    _upload_to_bucket("images", storage_path, file_bytes, media_type)
     return storage_path
 
 
@@ -71,10 +84,9 @@ def upload_audio_to_storage(
     """Upload raw audio to Supabase Storage and return the path."""
     ext = Path(filename).suffix.lower().lstrip(".")
     storage_path = f"{user_id}/{content_hash}.{ext}"
-    sb = get_supabase()
     mime_types = {"mp3": "audio/mpeg", "webm": "audio/webm", "m4a": "audio/mp4"}
     media_type = mime_types.get(ext, "audio/mpeg")
-    sb.storage.from_("audio").upload(storage_path, file_bytes, {"content-type": media_type})
+    _upload_to_bucket("audio", storage_path, file_bytes, media_type)
     return storage_path
 
 
@@ -99,7 +111,6 @@ def upload_document_to_storage(
     """Upload raw document to Supabase Storage and return the path."""
     ext = Path(filename).suffix.lower().lstrip(".")
     storage_path = f"{user_id}/{content_hash}.{ext}"
-    sb = get_supabase()
     mime_types = {
         "pdf": "application/pdf",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -114,7 +125,7 @@ def upload_document_to_storage(
         "yml": "text/yaml",
     }
     media_type = mime_types.get(ext, "application/octet-stream")
-    sb.storage.from_("documents").upload(storage_path, file_bytes, {"content-type": media_type})
+    _upload_to_bucket("documents", storage_path, file_bytes, media_type)
     return storage_path
 
 
