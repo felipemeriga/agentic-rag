@@ -125,7 +125,7 @@ export default function SettingsPage() {
         {/* Card 1: API Keys */}
         <Box
           sx={{
-            bgcolor: alpha("#1a1a28", 0.6),
+            bgcolor: alpha("#1e1e2e", 0.6),
             border: 1,
             borderColor: alpha("#ffffff", 0.06),
             borderRadius: 4,
@@ -267,7 +267,7 @@ export default function SettingsPage() {
         {/* Card 2: MCP Configuration */}
         <Box
           sx={{
-            bgcolor: alpha("#1a1a28", 0.6),
+            bgcolor: alpha("#1e1e2e", 0.6),
             border: 1,
             borderColor: alpha("#ffffff", 0.06),
             borderRadius: 4,

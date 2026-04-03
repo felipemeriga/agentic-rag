@@ -40,7 +40,7 @@ export default function LoginPage() {
         justifyContent: "center",
         position: "relative",
         overflow: "hidden",
-        bgcolor: "#09090b",
+        bgcolor: "#0f0f14",
       }}
     >
       {/* Ambient animated background */}
@@ -76,7 +76,7 @@ export default function LoginPage() {
           mx: 2,
           p: 4,
           borderRadius: 4,
-          bgcolor: alpha("#111118", 0.6),
+          bgcolor: alpha("#171720", 0.6),
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           border: 1,

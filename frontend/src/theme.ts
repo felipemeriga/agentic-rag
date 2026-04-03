@@ -23,8 +23,8 @@ const theme = createTheme({
       main: "#f59e0b",
     },
     background: {
-      default: "#09090b",
-      paper: "#111118",
+      default: "#0f0f14",
+      paper: "#171720",
     },
     divider: alpha("#ffffff", 0.06),
   },
@@ -48,7 +48,7 @@ const theme = createTheme({
       styleOverrides: {
         body: {
           background:
-            "linear-gradient(135deg, #09090b 0%, #0d1117 50%, #09090b 100%)",
+            "linear-gradient(135deg, #0f0f14 0%, #13141f 50%, #0f0f14 100%)",
           minHeight: "100vh",
         },
       },
@@ -89,7 +89,7 @@ const theme = createTheme({
         root: {
           borderRadius: 16,
           backgroundImage: "none",
-          backgroundColor: alpha("#1a1a28", 0.65),
+          backgroundColor: alpha("#1e1e2e", 0.65),
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
           border: `1px solid ${alpha("#ffffff", 0.08)}`,
@@ -107,7 +107,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: "none",
-          backgroundColor: alpha("#1a1a28", 0.6),
+          backgroundColor: alpha("#1e1e2e", 0.6),
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
           border: `1px solid ${alpha("#ffffff", 0.06)}`,
@@ -164,7 +164,7 @@ const theme = createTheme({
     MuiTooltip: {
       styleOverrides: {
         tooltip: {
-          backgroundColor: alpha("#1a1a28", 0.95),
+          backgroundColor: alpha("#1e1e2e", 0.95),
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           borderRadius: 8,

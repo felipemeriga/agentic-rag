@@ -54,7 +54,7 @@ export default function DocumentCard({
       sx={{
         p: 2,
         borderRadius: 3,
-        bgcolor: alpha("#1a1a28", 0.6),
+        bgcolor: alpha("#1e1e2e", 0.6),
         border: 1,
         borderColor: alpha("#ffffff", 0.06),
         backdropFilter: "blur(10px)",
@@ -62,7 +62,7 @@ export default function DocumentCard({
         transition: "all 0.2s ease",
         position: "relative",
         "&:hover": {
-          bgcolor: alpha("#1a1a28", 0.8),
+          bgcolor: alpha("#1e1e2e", 0.8),
           borderColor: alpha("#ffffff", 0.1),
           "& .doc-actions": { opacity: 1 },
         },

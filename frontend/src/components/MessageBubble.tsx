@@ -44,7 +44,7 @@ export default function MessageBubble({ role, content }: MessageBubbleProps) {
           px: 2,
           py: 1.5,
           maxWidth: "70%",
-          bgcolor: isUser ? alpha("#7c3aed", 0.15) : alpha("#1a1a28", 0.6),
+          bgcolor: isUser ? alpha("#7c3aed", 0.15) : alpha("#1e1e2e", 0.6),
           border: 1,
           borderColor: isUser ? alpha("#7c3aed", 0.25) : alpha("#ffffff", 0.06),
           backdropFilter: "blur(10px)",

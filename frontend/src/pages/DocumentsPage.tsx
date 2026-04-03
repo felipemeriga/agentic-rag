@@ -268,7 +268,7 @@ export default function DocumentsPage() {
             gap: 2,
             borderBottom: 1,
             borderColor: "divider",
-            bgcolor: alpha("#0d0d15", 0.4),
+            bgcolor: alpha("#121219", 0.4),
           }}
         >
           <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
@@ -326,7 +326,7 @@ export default function DocumentsPage() {
               textAlign: "center",
               bgcolor: dragOver
                 ? alpha("#7c3aed", 0.08)
-                : alpha("#1a1a2e", 0.2),
+                : alpha("#1e1e2e", 0.2),
               transition: "all 0.2s ease-in-out",
               cursor: "pointer",
               "&:hover": {
@@ -473,7 +473,7 @@ export default function DocumentsPage() {
                       bgcolor:
                         dragOverFolderId === folder.id
                           ? alpha("#7c3aed", 0.12)
-                          : alpha("#1a1a2e", 0.4),
+                          : alpha("#1e1e2e", 0.4),
                       border: `1px solid ${
                         dragOverFolderId === folder.id
                           ? alpha("#7c3aed", 0.5)

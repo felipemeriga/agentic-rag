@@ -222,7 +222,7 @@ export default function IngestionDrawer({
       PaperProps={{
         sx: {
           width: DRAWER_WIDTH,
-          bgcolor: alpha("#0d0d15", 0.95),
+          bgcolor: alpha("#121219", 0.95),
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           borderLeft: `1px solid ${alpha("#ffffff", 0.08)}`,

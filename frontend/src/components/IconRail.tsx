@@ -73,7 +73,7 @@ export default function IconRail({
         alignItems: "center",
         py: 1.5,
         gap: 0.5,
-        bgcolor: "#08080d",
+        bgcolor: "#0c0c12",
         borderRight: 1,
         borderColor: "divider",
         flexShrink: 0,

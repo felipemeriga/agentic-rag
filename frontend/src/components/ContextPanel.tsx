@@ -66,7 +66,7 @@ export default function ContextPanel({
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        bgcolor: alpha("#0d0d15", 0.8),
+        bgcolor: alpha("#121219", 0.8),
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         borderRight: 1,

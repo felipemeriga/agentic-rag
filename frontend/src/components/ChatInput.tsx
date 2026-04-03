@@ -82,7 +82,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       sx={{
         borderTop: 1,
         borderColor: "divider",
-        bgcolor: alpha("#0d0d15", 0.5),
+        bgcolor: alpha("#121219", 0.5),
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
       }}
