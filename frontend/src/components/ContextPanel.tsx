@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   Box,
   List,
@@ -8,9 +9,11 @@ import {
   Typography,
   alpha,
 } from "@mui/material";
+import { useSearchParams } from "react-router-dom";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import FolderTree from "./FolderTree";
 import type { AppPage } from "./IconRail";
 import type { Conversation } from "../lib/api";
 
@@ -22,6 +25,7 @@ interface ContextPanelProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  onRequestDeleteFolder?: (folderId: string, folderName: string) => void;
 }
 
 export default function ContextPanel({
@@ -32,7 +36,26 @@ export default function ContextPanel({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onRequestDeleteFolder,
 }: ContextPanelProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const selectedFolderId = searchParams.get("folder") || null;
+
+  const handleSelectFolder = useCallback(
+    (id: string | null) => {
+      setSearchParams(id ? { folder: id } : {}, { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const handleDeleteFolder = useCallback(
+    (folderId: string, folderName: string) => {
+      onRequestDeleteFolder?.(folderId, folderName);
+    },
+    [onRequestDeleteFolder]
+  );
+
   if (!open) return null;
 
   return (
@@ -61,7 +84,16 @@ export default function ContextPanel({
         />
       )}
       {activePage === "/documents" && (
-        <SectionHeader label="Folders" />
+        <>
+          <SectionHeader label="Folders" />
+          <Box sx={{ flex: 1, overflow: "auto" }}>
+            <FolderTree
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={handleSelectFolder}
+              onRequestDelete={handleDeleteFolder}
+            />
+          </Box>
+        </>
       )}
       {activePage === "/notes" && (
         <SectionHeader label="Notes" />

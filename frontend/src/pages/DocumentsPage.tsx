@@ -16,6 +16,7 @@ import {
   Badge,
   Tooltip,
 } from "@mui/material";
+import { useSearchParams } from "react-router-dom";
 import { keyframes } from "@mui/system";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -52,8 +53,15 @@ export default function DocumentsPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
 
-  // Folder navigation
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  // Folder navigation via URL search params (shared with ContextPanel)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentFolderId = searchParams.get("folder") || null;
+  const setCurrentFolderId = useCallback(
+    (id: string | null) => {
+      setSearchParams(id ? { folder: id } : {}, { replace: true });
+    },
+    [setSearchParams]
+  );
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
