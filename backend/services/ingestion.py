@@ -7,7 +7,7 @@ from pathlib import Path
 
 from storage3.exceptions import StorageApiError
 
-from db.client import get_supabase
+from db.client import get_supabase_thread_safe as get_supabase
 from services.chunker import chunk_text
 from services.embeddings import embed_document
 from services.metadata import extract_metadata
