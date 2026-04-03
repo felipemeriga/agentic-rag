@@ -90,7 +90,8 @@ export async function streamChat(
   onToken: (token: string) => void,
   onDone: () => void,
   filters?: ChatFilters,
-  onStage?: (event: StageEvent) => void
+  onStage?: (event: StageEvent) => void,
+  fastMode?: boolean
 ): Promise<void> {
   const headers = await getAuthHeaders();
   const response = await fetch("/api/chat", {
@@ -101,6 +102,7 @@ export async function streamChat(
       content,
       topic: filters?.topic || null,
       keyword: filters?.keyword || null,
+      fast_mode: fastMode ?? false,
     }),
   });
 

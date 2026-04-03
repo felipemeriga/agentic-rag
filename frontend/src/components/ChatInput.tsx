@@ -14,11 +14,12 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import BoltIcon from "@mui/icons-material/Bolt";
 import { uploadDocument, fetchDocumentFilters } from "../lib/api";
 import type { ChatFilters, DocumentFilters } from "../lib/api";
 
 interface ChatInputProps {
-  onSend: (message: string, filters?: ChatFilters) => void;
+  onSend: (message: string, filters?: ChatFilters, fastMode?: boolean) => void;
   disabled: boolean;
 }
 
@@ -27,6 +28,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<ChatFilters>({});
+  const [fastMode, setFastMode] = useState(false);
   const [availableFilters, setAvailableFilters] = useState<DocumentFilters>({
     topics: [],
     keywords: [],
@@ -43,7 +45,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (!trimmed) return;
     const filters =
       activeFilters.topic || activeFilters.keyword ? activeFilters : undefined;
-    onSend(trimmed, filters);
+    onSend(trimmed, filters, fastMode);
     setInput("");
     setUploadedFile(null);
   };
@@ -137,6 +139,24 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
               <FilterListIcon />
             </IconButton>
           </span>
+        </Tooltip>
+        <Tooltip title={fastMode
+          ? "Fast mode ON — skips query rewriting and multi-query expansion for quicker responses"
+          : "Fast mode OFF — uses query rewriting and multi-query for deeper, more accurate search"
+        }>
+          <IconButton
+            onClick={() => setFastMode((prev) => !prev)}
+            disabled={disabled}
+            sx={{
+              color: fastMode ? "#f59e0b" : undefined,
+              bgcolor: fastMode ? alpha("#f59e0b", 0.1) : undefined,
+              "&:hover": {
+                bgcolor: fastMode ? alpha("#f59e0b", 0.2) : undefined,
+              },
+            }}
+          >
+            <BoltIcon />
+          </IconButton>
         </Tooltip>
         <Menu
           anchorEl={filterAnchor}

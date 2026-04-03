@@ -74,13 +74,15 @@ def execute_tool(
     user_id: str,
     topic: str | None = None,
     keyword: str | None = None,
+    fast_mode: bool = False,
 ) -> str:
     """Execute a tool call and return the result as a string."""
     if tool_name == "knowledge_base_search":
         query = tool_input["query"]
         embedding = embed_query(query)
         results = search_documents(
-            embedding, query_text=query, user_id=user_id, topic=topic, keyword=keyword
+            embedding, query_text=query, user_id=user_id, topic=topic, keyword=keyword,
+            fast_mode=fast_mode,
         )
         if not results:
             return "No relevant documents found in the knowledge base."

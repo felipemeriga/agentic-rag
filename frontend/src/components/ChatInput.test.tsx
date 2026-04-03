@@ -36,6 +36,6 @@ describe("ChatInput", () => {
       "Ask a question about your documents..."
     );
     await user.type(input, "test message{Enter}");
-    expect(onSend).toHaveBeenCalledWith("test message", undefined);
+    expect(onSend).toHaveBeenCalledWith("test message", undefined, false);
   });
 });

@@ -13,7 +13,7 @@ export default function ChatPage() {
   const [currentStage, setCurrentStage] = useState<StageEvent | null>(null);
   const streamingRef = useRef("");
 
-  const handleSend = async (content: string, filters?: ChatFilters) => {
+  const handleSend = async (content: string, filters?: ChatFilters, fastMode?: boolean) => {
     if (!selectedId || isStreaming) return;
 
     const userMsg: Message = {
@@ -53,6 +53,7 @@ export default function ChatPage() {
         },
         filters,
         (stage) => setCurrentStage(stage),
+        fastMode,
       );
     } catch {
       setIsStreaming(false);

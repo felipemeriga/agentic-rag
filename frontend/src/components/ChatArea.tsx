@@ -11,7 +11,7 @@ interface ChatAreaProps {
   streamingContent: string;
   isStreaming: boolean;
   currentStage: StageEvent | null;
-  onSend: (message: string, filters?: ChatFilters) => void;
+  onSend: (message: string, filters?: ChatFilters, fastMode?: boolean) => void;
 }
 
 const SUGGESTIONS = [
