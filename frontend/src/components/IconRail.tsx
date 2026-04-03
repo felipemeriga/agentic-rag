@@ -2,11 +2,9 @@ import { Box, IconButton, Tooltip, Typography, alpha } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import StickyNote2Icon from "@mui/icons-material/StickyNote2";
-import MemoryIcon from "@mui/icons-material/Memory";
 import SettingsIcon from "@mui/icons-material/Settings";
 
-export type AppPage = "/" | "/documents" | "/notes" | "/context" | "/settings";
+export type AppPage = "/" | "/documents" | "/settings";
 
 interface IconRailProps {
   activePage: AppPage;
@@ -33,18 +31,6 @@ const NAV_ITEMS: {
     icon: <FolderOpenIcon sx={{ fontSize: 20 }} />,
     label: "Documents",
     testId: "nav-documents",
-  },
-  {
-    page: "/notes",
-    icon: <StickyNote2Icon sx={{ fontSize: 20 }} />,
-    label: "Notes",
-    testId: "nav-notes",
-  },
-  {
-    page: "/context",
-    icon: <MemoryIcon sx={{ fontSize: 20 }} />,
-    label: "Context",
-    testId: "nav-context",
   },
 ];
 

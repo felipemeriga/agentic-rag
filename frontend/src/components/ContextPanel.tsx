@@ -95,12 +95,6 @@ export default function ContextPanel({
           </Box>
         </>
       )}
-      {activePage === "/notes" && (
-        <SectionHeader label="Notes" />
-      )}
-      {activePage === "/context" && (
-        <SectionHeader label="Context" />
-      )}
     </Box>
   );
 }

@@ -17,8 +17,6 @@ describe("IconRail", () => {
     renderWithProviders(<IconRail {...defaultProps} />);
     expect(screen.getByTestId("nav-chat")).toBeInTheDocument();
     expect(screen.getByTestId("nav-documents")).toBeInTheDocument();
-    expect(screen.getByTestId("nav-notes")).toBeInTheDocument();
-    expect(screen.getByTestId("nav-context")).toBeInTheDocument();
     expect(screen.getByTestId("nav-settings")).toBeInTheDocument();
   });
 
