@@ -1,5 +1,4 @@
 import { Box, IconButton, Tooltip, Typography, alpha } from "@mui/material";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -67,19 +66,16 @@ export default function IconRail({
     >
       {/* Logo */}
       <Box
+        component="img"
+        src="/logo.svg"
+        alt="Agentic RAG"
         sx={{
           width: 32,
           height: 32,
           borderRadius: 2,
-          background: "linear-gradient(135deg, #7c3aed, #3b82f6)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           mb: 1.5,
         }}
-      >
-        <AutoAwesomeIcon sx={{ fontSize: 16, color: "#ffffff" }} />
-      </Box>
+      />
 
       {/* Navigation */}
       {NAV_ITEMS.map(({ page, icon, label, testId }) => {

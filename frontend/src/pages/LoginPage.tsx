@@ -8,7 +8,6 @@ import {
   alpha,
   CircularProgress,
 } from "@mui/material";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import { supabase } from "../lib/supabase";
 
 export default function LoginPage() {
@@ -90,18 +89,15 @@ export default function LoginPage() {
       >
         {/* Logo + title */}
         <Box
+          component="img"
+          src="/logo.svg"
+          alt="Agentic RAG"
           sx={{
-            width: 48,
-            height: 48,
+            width: 56,
+            height: 56,
             borderRadius: 3,
-            background: "linear-gradient(135deg, #7c3aed, #3b82f6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
           }}
-        >
-          <AutoAwesomeIcon sx={{ fontSize: 24, color: "#ffffff" }} />
-        </Box>
+        />
         <Typography
           variant="h5"
           sx={{
