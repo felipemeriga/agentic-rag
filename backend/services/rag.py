@@ -85,8 +85,12 @@ def stream_rag_response(
             for block in response.content:
                 if block.type == "tool_use":
                     result_text = execute_tool(
-                        block.name, block.input, user_id,
-                        topic, keyword, fast_mode=fast_mode,
+                        block.name,
+                        block.input,
+                        user_id,
+                        topic,
+                        keyword,
+                        fast_mode=fast_mode,
                     )
                     tool_results.append(
                         {

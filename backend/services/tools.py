@@ -81,7 +81,11 @@ def execute_tool(
         query = tool_input["query"]
         embedding = embed_query(query)
         results = search_documents(
-            embedding, query_text=query, user_id=user_id, topic=topic, keyword=keyword,
+            embedding,
+            query_text=query,
+            user_id=user_id,
+            topic=topic,
+            keyword=keyword,
             fast_mode=fast_mode,
         )
         if not results:
