@@ -562,6 +562,9 @@ export default function DocumentsPage() {
                       });
                     }}
                     onDownload={handleDownload}
+                    onMove={(filename, folderId) => {
+                      move(filename, folderId);
+                    }}
                   />
                 ))}
               </Box>
