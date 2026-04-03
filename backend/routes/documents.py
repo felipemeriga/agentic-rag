@@ -228,7 +228,9 @@ async def download_document(filename: str, user_id: str = Depends(get_current_us
     else:
         bucket = "documents"
 
-    signed = sb.storage.from_(bucket).create_signed_url(file_url, 300)
+    signed = sb.storage.from_(bucket).create_signed_url(
+        file_url, 300, options={"download": filename}
+    )
     return {"url": signed["signedURL"]}
 
 

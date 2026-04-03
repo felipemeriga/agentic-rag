@@ -2,7 +2,7 @@
 
 from fastapi import HTTPException
 
-from db.client import get_supabase
+from db.client import get_supabase_thread_safe as get_supabase
 
 
 def resolve_root_folder_id(folder_id: str, user_id: str) -> str:

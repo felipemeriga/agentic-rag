@@ -14,11 +14,12 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import BoltIcon from "@mui/icons-material/Bolt";
 import { uploadDocument, fetchDocumentFilters } from "../lib/api";
 import type { ChatFilters, DocumentFilters } from "../lib/api";
 
 interface ChatInputProps {
-  onSend: (message: string, filters?: ChatFilters) => void;
+  onSend: (message: string, filters?: ChatFilters, fastMode?: boolean) => void;
   disabled: boolean;
 }
 
@@ -27,6 +28,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<ChatFilters>({});
+  const [fastMode, setFastMode] = useState(false);
   const [availableFilters, setAvailableFilters] = useState<DocumentFilters>({
     topics: [],
     keywords: [],
@@ -43,7 +45,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (!trimmed) return;
     const filters =
       activeFilters.topic || activeFilters.keyword ? activeFilters : undefined;
-    onSend(trimmed, filters);
+    onSend(trimmed, filters, fastMode);
     setInput("");
     setUploadedFile(null);
   };
@@ -82,7 +84,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       sx={{
         borderTop: 1,
         borderColor: "divider",
-        bgcolor: alpha("#0d0d15", 0.5),
+        bgcolor: alpha("#121219", 0.5),
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
       }}
@@ -138,6 +140,24 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
             </IconButton>
           </span>
         </Tooltip>
+        <Tooltip title={fastMode
+          ? "Fast mode ON — skips query rewriting and multi-query expansion for quicker responses"
+          : "Fast mode OFF — uses query rewriting and multi-query for deeper, more accurate search"
+        }>
+          <IconButton
+            onClick={() => setFastMode((prev) => !prev)}
+            disabled={disabled}
+            sx={{
+              color: fastMode ? "#f59e0b" : undefined,
+              bgcolor: fastMode ? alpha("#f59e0b", 0.1) : undefined,
+              "&:hover": {
+                bgcolor: fastMode ? alpha("#f59e0b", 0.2) : undefined,
+              },
+            }}
+          >
+            <BoltIcon />
+          </IconButton>
+        </Tooltip>
         <Menu
           anchorEl={filterAnchor}
           open={Boolean(filterAnchor)}
@@ -184,7 +204,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           fullWidth
           multiline
           maxRows={4}
-          placeholder="Type a message..."
+          placeholder="Ask a question about your documents..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

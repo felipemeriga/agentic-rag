@@ -1,12 +1,11 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import SettingsPage from "./pages/SettingsPage";
-import NotesPage from "./pages/NotesPage";
-import ContextPage from "./pages/ContextPage";
 
 function App() {
   return (
@@ -18,7 +17,9 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <ChatPage />
+                <AppLayout>
+                  <ChatPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -26,7 +27,9 @@ function App() {
             path="/documents"
             element={
               <ProtectedRoute>
-                <DocumentsPage />
+                <AppLayout>
+                  <DocumentsPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -34,23 +37,9 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notes"
-            element={
-              <ProtectedRoute>
-                <NotesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/context"
-            element={
-              <ProtectedRoute>
-                <ContextPage />
+                <AppLayout>
+                  <SettingsPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />

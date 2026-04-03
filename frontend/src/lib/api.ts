@@ -67,6 +67,13 @@ export interface ChatFilters {
   keyword?: string;
 }
 
+export type ChatStage = "searching" | "analyzing" | "generating";
+
+export interface StageEvent {
+  stage: ChatStage;
+  docs?: number;
+}
+
 export interface DocumentFilters {
   topics: string[];
   keywords: string[];
@@ -82,7 +89,9 @@ export async function streamChat(
   content: string,
   onToken: (token: string) => void,
   onDone: () => void,
-  filters?: ChatFilters
+  filters?: ChatFilters,
+  onStage?: (event: StageEvent) => void,
+  fastMode?: boolean
 ): Promise<void> {
   const headers = await getAuthHeaders();
   const response = await fetch("/api/chat", {
@@ -93,6 +102,7 @@ export async function streamChat(
       content,
       topic: filters?.topic || null,
       keyword: filters?.keyword || null,
+      fast_mode: fastMode ?? false,
     }),
   });
 
@@ -116,10 +126,19 @@ export async function streamChat(
 
     for (const line of lines) {
       if (line.startsWith("data: ")) {
-        const data = JSON.parse(line.slice(6));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any;
+        try {
+          data = JSON.parse(line.slice(6));
+        } catch {
+          continue;
+        }
         if (data.done) {
           onDone();
           return;
+        }
+        if (data.stage && onStage) {
+          onStage({ stage: data.stage, docs: data.docs });
         }
         if (data.token) {
           onToken(data.token);
@@ -324,59 +343,6 @@ export async function createApiKey(
 
 export async function revokeApiKey(keyId: string): Promise<void> {
   await apiFetch(`/api/api-keys/${keyId}`, { method: "DELETE" });
-}
-
-// --- Notes ---
-
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  root_folder_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export async function fetchNotes(
-  rootFolderId?: string | null
-): Promise<Note[]> {
-  const params = rootFolderId ? `?root_folder_id=${rootFolderId}` : "";
-  const res = await apiFetch(`/api/notes${params}`);
-  return res.json();
-}
-
-export async function deleteNote(noteId: string): Promise<void> {
-  await apiFetch(`/api/notes/${noteId}`, { method: "DELETE" });
-}
-
-// --- Context ---
-
-export interface ContextEntry {
-  id: string;
-  key: string;
-  value: string;
-  root_folder_id: string | null;
-  expires_at: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export async function fetchContext(
-  rootFolderId?: string | null
-): Promise<ContextEntry[]> {
-  const params = rootFolderId ? `?root_folder_id=${rootFolderId}` : "";
-  const res = await apiFetch(`/api/context${params}`);
-  return res.json();
-}
-
-export async function deleteContextEntry(contextId: string): Promise<void> {
-  await apiFetch(`/api/context/${contextId}`, { method: "DELETE" });
-}
-
-export async function clearAllContext(rootFolderId: string): Promise<void> {
-  await apiFetch(`/api/context/clear?root_folder_id=${rootFolderId}`, {
-    method: "DELETE",
-  });
 }
 
 // --- Scopes (root folders) ---

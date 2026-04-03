@@ -13,6 +13,7 @@ class ChatRequest(BaseModel):
     content: str
     topic: str | None = None
     keyword: str | None = None
+    fast_mode: bool = False
 
 
 @router.post("/chat")
@@ -24,6 +25,7 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
             user_id=user_id,
             topic=request.topic,
             keyword=request.keyword,
+            fast_mode=request.fast_mode,
         )
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
