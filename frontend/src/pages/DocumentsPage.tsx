@@ -23,6 +23,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import FolderIcon from "@mui/icons-material/Folder";
 import MicIcon from "@mui/icons-material/Mic";
+import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import CloseIcon from "@mui/icons-material/Close";
 import StopIcon from "@mui/icons-material/Stop";
 import { useDocuments } from "../hooks/useDocuments";
 import { useIngestionStatus } from "../hooks/useIngestionStatus";
@@ -33,6 +35,7 @@ import {
   downloadDocument,
 } from "../lib/api";
 import DocumentCard from "../components/DocumentCard";
+import MoveDialog from "../components/MoveDialog";
 import IngestionDrawer from "../components/IngestionDrawer";
 
 const ACCEPTED_TYPES =
@@ -65,6 +68,37 @@ export default function DocumentsPage() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
+  // Multi-select
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+
+  const toggleFileSelect = useCallback((filename: string) => {
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(filename)) next.delete(filename);
+      else next.add(filename);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = () => setSelectedFiles(new Set());
+
+  const handleBulkMove = (folderId: string | null) => {
+    for (const filename of selectedFiles) {
+      move(filename, folderId);
+    }
+    clearSelection();
+    setBulkMoveOpen(false);
+  };
+
+  const handleBulkDelete = () => {
+    setDeleteConfirm({
+      type: "document",
+      id: Array.from(selectedFiles).join(","),
+      name: `${selectedFiles.size} selected file${selectedFiles.size > 1 ? "s" : ""}`,
+    });
+  };
+
   // Folder drag-over for file grid area
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
 
@@ -87,6 +121,15 @@ export default function DocumentsPage() {
     closeDrawer: closeIngestionDrawer,
     cancelAutoClose,
   } = useIngestionStatus();
+
+  // Clear selection when folder changes
+  const [prevFolder, setPrevFolder] = useState(currentFolderId);
+  if (prevFolder !== currentFolderId) {
+    setPrevFolder(currentFolderId);
+    if (selectedFiles.size > 0) {
+      setSelectedFiles(new Set());
+    }
+  }
 
   // Refresh document list when ingestion tasks complete
   useEffect(() => {
@@ -220,7 +263,7 @@ export default function DocumentsPage() {
     (folderId: string, folderName: string) => {
       setDeleteConfirm({ type: "folder", id: folderId, name: folderName });
     },
-    []
+    [setDeleteConfirm]
   );
 
   const handleConfirmDelete = async () => {
@@ -231,6 +274,13 @@ export default function DocumentsPage() {
         setCurrentFolderId(null);
       }
       loadSubFolders();
+    } else if (deleteConfirm.id.includes(",")) {
+      // Bulk delete — id is comma-separated filenames
+      const filenames = deleteConfirm.id.split(",");
+      for (const filename of filenames) {
+        await remove(filename);
+      }
+      clearSelection();
     } else {
       await remove(deleteConfirm.name);
     }
@@ -554,6 +604,8 @@ export default function DocumentsPage() {
                   <DocumentCard
                     key={doc.source_filename}
                     doc={doc}
+                    selected={selectedFiles.has(doc.source_filename)}
+                    onSelect={toggleFileSelect}
                     onDelete={(filename) => {
                       setDeleteConfirm({
                         type: "document",
@@ -585,6 +637,62 @@ export default function DocumentsPage() {
             </Box>
           )}
         </Box>
+
+      {/* Bulk action bar */}
+      {selectedFiles.size > 0 && (
+        <Paper
+          elevation={8}
+          sx={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            px: 3,
+            py: 1.5,
+            borderRadius: 3,
+            bgcolor: alpha("#1e1e2e", 0.95),
+            border: 1,
+            borderColor: alpha("#7c3aed", 0.3),
+            backdropFilter: "blur(12px)",
+            zIndex: 1200,
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {selectedFiles.size} selected
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<DriveFileMoveIcon />}
+            onClick={() => setBulkMoveOpen(true)}
+            sx={{ textTransform: "none" }}
+          >
+            Move
+          </Button>
+          <Button
+            size="small"
+            startIcon={<DeleteIcon />}
+            color="error"
+            onClick={handleBulkDelete}
+            sx={{ textTransform: "none" }}
+          >
+            Delete
+          </Button>
+          <IconButton size="small" onClick={clearSelection}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Paper>
+      )}
+
+      {/* Bulk Move Dialog */}
+      <MoveDialog
+        open={bulkMoveOpen}
+        title={`Move ${selectedFiles.size} file${selectedFiles.size > 1 ? "s" : ""}`}
+        onClose={() => setBulkMoveOpen(false)}
+        onSelect={handleBulkMove}
+      />
 
       {/* New Folder Dialog */}
       <Dialog

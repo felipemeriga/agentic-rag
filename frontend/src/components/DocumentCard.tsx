@@ -8,13 +8,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  List,
-  ListItemButton,
+  Checkbox,
   Snackbar,
   alpha,
 } from "@mui/material";
@@ -27,12 +21,13 @@ import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
-import FolderIcon from "@mui/icons-material/Folder";
-import type { DocumentInfo, Folder } from "../lib/api";
-import { fetchFolders } from "../lib/api";
+import type { DocumentInfo } from "../lib/api";
+import MoveDialog from "./MoveDialog";
 
 interface DocumentCardProps {
   doc: DocumentInfo;
+  selected?: boolean;
+  onSelect?: (filename: string) => void;
   onDelete: (filename: string) => void;
   onDownload: (filename: string) => void;
   onMove?: (filename: string, folderId: string | null) => void;
@@ -67,6 +62,8 @@ function timeAgo(dateStr: string): string {
 
 export default function DocumentCard({
   doc,
+  selected,
+  onSelect,
   onDelete,
   onDownload,
   onMove,
@@ -74,12 +71,8 @@ export default function DocumentCard({
   const ext = doc.source_filename.split(".").pop()?.toLowerCase() || "txt";
   const fileStyle = FILE_ICONS[ext] || FILE_ICONS.txt;
 
-  // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  // Move dialog state
   const [moveOpen, setMoveOpen] = useState(false);
-  const [folders, setFolders] = useState<Folder[]>([]);
-  // Snackbar for copy feedback
   const [snackOpen, setSnackOpen] = useState(false);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -107,7 +100,6 @@ export default function DocumentCard({
 
   const handleMoveOpen = () => {
     closeMenu();
-    fetchFolders(null).then(setFolders).catch(() => {});
     setMoveOpen(true);
   };
 
@@ -116,28 +108,59 @@ export default function DocumentCard({
     setMoveOpen(false);
   };
 
+  const handleClick = () => {
+    onSelect?.(doc.source_filename);
+  };
+
   return (
     <>
       <Box
         onContextMenu={handleContextMenu}
+        onClick={handleClick}
         sx={{
           p: 2,
           borderRadius: 3,
           bgcolor: alpha("#1e1e2e", 0.6),
           border: 1,
-          borderColor: alpha("#ffffff", 0.06),
+          borderColor: selected ? alpha("#7c3aed", 0.5) : alpha("#ffffff", 0.06),
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
           transition: "all 0.2s ease",
           position: "relative",
           cursor: "context-menu",
+          ...(selected && {
+            bgcolor: alpha("#7c3aed", 0.08),
+            boxShadow: `0 0 0 1px ${alpha("#7c3aed", 0.3)}`,
+          }),
           "&:hover": {
-            bgcolor: alpha("#1e1e2e", 0.8),
-            borderColor: alpha("#ffffff", 0.1),
+            bgcolor: selected ? alpha("#7c3aed", 0.12) : alpha("#1e1e2e", 0.8),
+            borderColor: selected ? alpha("#7c3aed", 0.5) : alpha("#ffffff", 0.1),
             "& .doc-actions": { opacity: 1 },
+            "& .doc-checkbox": { opacity: 1 },
           },
         }}
       >
+        {/* Selection checkbox */}
+        {onSelect && (
+          <Checkbox
+            className="doc-checkbox"
+            checked={selected}
+            size="small"
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => onSelect(doc.source_filename)}
+            sx={{
+              position: "absolute",
+              top: 4,
+              left: 4,
+              opacity: selected ? 1 : 0,
+              transition: "opacity 0.15s",
+              p: 0.5,
+              color: alpha("#7c3aed", 0.5),
+              "&.Mui-checked": { color: "#7c3aed" },
+            }}
+          />
+        )}
+
         <Box
           className="doc-actions"
           sx={{
@@ -153,7 +176,7 @@ export default function DocumentCard({
           {doc.has_file && (
             <IconButton
               size="small"
-              onClick={() => onDownload(doc.source_filename)}
+              onClick={(e) => { e.stopPropagation(); onDownload(doc.source_filename); }}
               sx={{ p: 0.5 }}
             >
               <DownloadIcon sx={{ fontSize: 16 }} />
@@ -161,7 +184,7 @@ export default function DocumentCard({
           )}
           <IconButton
             size="small"
-            onClick={() => onDelete(doc.source_filename)}
+            onClick={(e) => { e.stopPropagation(); onDelete(doc.source_filename); }}
             sx={{ p: 0.5 }}
           >
             <DeleteIcon sx={{ fontSize: 16 }} />
@@ -252,31 +275,13 @@ export default function DocumentCard({
         </MenuItem>
       </Menu>
 
-      {/* Move to folder dialog */}
-      <Dialog open={moveOpen} onClose={() => setMoveOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Move "{doc.source_filename}"</DialogTitle>
-        <DialogContent>
-          <List>
-            <ListItemButton onClick={() => handleMoveSelect(null)}>
-              <ListItemIcon>
-                <FolderIcon sx={{ color: alpha("#ffffff", 0.5) }} />
-              </ListItemIcon>
-              <ListItemText primary="Root (no folder)" />
-            </ListItemButton>
-            {folders.map((f) => (
-              <ListItemButton key={f.id} onClick={() => handleMoveSelect(f.id)}>
-                <ListItemIcon>
-                  <FolderIcon sx={{ color: "#7c3aed" }} />
-                </ListItemIcon>
-                <ListItemText primary={f.name} />
-              </ListItemButton>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMoveOpen(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Move dialog */}
+      <MoveDialog
+        open={moveOpen}
+        title={`Move "${doc.source_filename}"`}
+        onClose={() => setMoveOpen(false)}
+        onSelect={handleMoveSelect}
+      />
 
       {/* Copy feedback */}
       <Snackbar
