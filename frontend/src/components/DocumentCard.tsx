@@ -140,27 +140,6 @@ export default function DocumentCard({
           },
         }}
       >
-        {/* Selection checkbox */}
-        {onSelect && (
-          <Checkbox
-            className="doc-checkbox"
-            checked={selected}
-            size="small"
-            onClick={(e) => e.stopPropagation()}
-            onChange={() => onSelect(doc.source_filename)}
-            sx={{
-              position: "absolute",
-              top: 4,
-              left: 4,
-              opacity: selected ? 1 : 0,
-              transition: "opacity 0.15s",
-              p: 0.5,
-              color: alpha("#7c3aed", 0.5),
-              "&.Mui-checked": { color: "#7c3aed" },
-            }}
-          />
-        )}
-
         <Box
           className="doc-actions"
           sx={{
@@ -190,21 +169,40 @@ export default function DocumentCard({
             <DeleteIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Box>
-        <Box
-          sx={{
-            width: 36,
-            height: 36,
-            borderRadius: 2,
-            bgcolor: alpha(fileStyle.color, 0.1),
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            mb: 1.5,
-            color: fileStyle.color,
-            "& .MuiSvgIcon-root": { fontSize: 20 },
-          }}
-        >
-          {fileStyle.icon}
+
+        {/* File icon row with optional checkbox */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+          {onSelect && (
+            <Checkbox
+              className="doc-checkbox"
+              checked={selected}
+              size="small"
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => onSelect(doc.source_filename)}
+              sx={{
+                opacity: selected ? 1 : 0,
+                transition: "opacity 0.15s",
+                p: 0,
+                color: alpha("#7c3aed", 0.5),
+                "&.Mui-checked": { color: "#7c3aed" },
+              }}
+            />
+          )}
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: 2,
+              bgcolor: alpha(fileStyle.color, 0.1),
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: fileStyle.color,
+              "& .MuiSvgIcon-root": { fontSize: 20 },
+            }}
+          >
+            {fileStyle.icon}
+          </Box>
         </Box>
         <Typography variant="body2" noWrap sx={{ fontWeight: 500, mb: 0.75 }}>
           {doc.source_filename}
