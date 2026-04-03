@@ -141,6 +141,13 @@ export default function DocumentsPage() {
     }
   }, [ingestionTasks, loadDocuments]);
 
+  // Listen for new-folder event from sidebar
+  useEffect(() => {
+    const handler = () => setNewFolderOpen(true);
+    window.addEventListener("new-folder", handler);
+    return () => window.removeEventListener("new-folder", handler);
+  }, []);
+
   // Recording timer
   useEffect(() => {
     if (!isRecording) return;
@@ -257,6 +264,8 @@ export default function DocumentsPage() {
     setNewFolderName("");
     setNewFolderOpen(false);
     loadSubFolders();
+    // Notify sidebar FolderTree to refresh
+    window.dispatchEvent(new CustomEvent("folders-changed"));
   };
 
   const handleRequestDeleteFolder = useCallback(

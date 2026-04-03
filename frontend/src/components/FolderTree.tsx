@@ -157,6 +157,9 @@ export default function FolderTree({
 
   useEffect(() => {
     loadRoot();
+    const handler = () => loadRoot();
+    window.addEventListener("folders-changed", handler);
+    return () => window.removeEventListener("folders-changed", handler);
   }, [loadRoot]);
 
   return (

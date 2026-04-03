@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Box } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
 import IconRail, { type AppPage } from "./IconRail";
@@ -22,6 +23,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Show panel on pages that have contextual content
   const showPanel = activePage === "/" || activePage === "/documents";
 
+  const handleNewFolder = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("new-folder"));
+  }, []);
+
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       <IconRail
@@ -39,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onSelectConversation={selectConversation}
         onNewConversation={createConversation}
         onDeleteConversation={removeConversation}
+        onNewFolder={handleNewFolder}
       />
       <Box sx={{ flex: 1, overflow: "hidden" }}>{children}</Box>
     </Box>

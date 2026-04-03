@@ -26,6 +26,7 @@ interface ContextPanelProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   onRequestDeleteFolder?: (folderId: string, folderName: string) => void;
+  onNewFolder?: () => void;
 }
 
 export default function ContextPanel({
@@ -37,6 +38,7 @@ export default function ContextPanel({
   onNewConversation,
   onDeleteConversation,
   onRequestDeleteFolder,
+  onNewFolder,
 }: ContextPanelProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -85,7 +87,45 @@ export default function ContextPanel({
       )}
       {activePage === "/documents" && (
         <>
-          <SectionHeader label="Folders" />
+          <Box
+            sx={{
+              px: 1.5,
+              pt: 1.5,
+              pb: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: alpha("#ffffff", 0.3),
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                fontSize: "0.65rem",
+                pl: 0.5,
+              }}
+            >
+              Folders
+            </Typography>
+            {onNewFolder && (
+              <IconButton
+                size="small"
+                onClick={onNewFolder}
+                sx={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 1,
+                  bgcolor: alpha("#7c3aed", 0.15),
+                  color: "#a78bfa",
+                  "&:hover": { bgcolor: alpha("#7c3aed", 0.25) },
+                }}
+              >
+                <AddIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            )}
+          </Box>
           <Box sx={{ flex: 1, overflow: "auto" }}>
             <FolderTree
               selectedFolderId={selectedFolderId}
@@ -95,24 +135,6 @@ export default function ContextPanel({
           </Box>
         </>
       )}
-    </Box>
-  );
-}
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-      <Typography
-        variant="caption"
-        sx={{
-          color: alpha("#ffffff", 0.3),
-          letterSpacing: 1,
-          textTransform: "uppercase",
-          fontSize: "0.65rem",
-        }}
-      >
-        {label}
-      </Typography>
     </Box>
   );
 }
