@@ -44,7 +44,7 @@ export default function ChatArea({
       }}
     >
       <Box sx={{ flex: 1, overflow: "auto" }}>
-        <Box sx={{ py: 3, px: 3, maxWidth: 800, mx: "auto" }}>
+        <Box sx={{ py: 3, px: 3 }}>
           {messages.length === 0 && !isStreaming && (
             <Box
               sx={{
