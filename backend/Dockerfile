@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.9-python3.10-bookworm-slim AS builder
+FROM --platform=linux/amd64 ghcr.io/astral-sh/uv:0.9-python3.10-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ RUN uv sync --frozen --no-dev --no-cache --no-install-project
 
 COPY . .
 
-FROM python:3.10-slim-bookworm
+FROM --platform=linux/amd64 python:3.10-slim-bookworm
 
 # Fix for "At least one invalid signature was encountered" error in Debian Bookworm
 RUN echo "APT::Sandbox::User \"root\";" > /etc/apt/apt.conf.d/99-sandbox-disable && \

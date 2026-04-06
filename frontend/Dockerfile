@@ -1,4 +1,4 @@
-FROM node:22-slim AS builder
+FROM --platform=linux/amd64 node:22-slim AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM --platform=linux/amd64 nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
