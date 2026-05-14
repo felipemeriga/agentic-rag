@@ -2,18 +2,22 @@ import { useState, useRef } from "react";
 import ChatArea from "../components/ChatArea";
 import type { Message, ChatFilters, StageEvent } from "../lib/api";
 import { streamChat } from "../lib/api";
-import { useConversations } from "../hooks/useConversations";
+import { useConversationsContext } from "../hooks/useConversationsContext";
 
 export default function ChatPage() {
   const { selectedId, messages, setMessages, loadConversations } =
-    useConversations();
+    useConversationsContext();
 
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStage, setCurrentStage] = useState<StageEvent | null>(null);
   const streamingRef = useRef("");
 
-  const handleSend = async (content: string, filters?: ChatFilters, fastMode?: boolean) => {
+  const handleSend = async (
+    content: string,
+    filters?: ChatFilters,
+    fastMode?: boolean
+  ) => {
     if (!selectedId || isStreaming) return;
 
     const userMsg: Message = {
@@ -53,7 +57,7 @@ export default function ChatPage() {
         },
         filters,
         (stage) => setCurrentStage(stage),
-        fastMode,
+        fastMode
       );
     } catch {
       setIsStreaming(false);

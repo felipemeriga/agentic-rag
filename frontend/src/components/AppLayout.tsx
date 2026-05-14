@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import IconRail, { type AppPage } from "./IconRail";
 import ContextPanel from "./ContextPanel";
 import { useAuth } from "../hooks/useAuth";
-import { useConversations } from "../hooks/useConversations";
+import { useConversationsContext } from "../hooks/useConversationsContext";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     selectConversation,
     createConversation,
     removeConversation,
-  } = useConversations();
+  } = useConversationsContext();
 
   const activePage = (location.pathname as AppPage) || "/";
 
